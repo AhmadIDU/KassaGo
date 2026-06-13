@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './store/authStore';
 import Layout from './components/common/Layout';
+import KassirLayout from './components/common/KassirLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Kassa from './pages/Kassa';
@@ -14,8 +15,8 @@ import Qarzdarlar from './pages/Qarzdarlar';
 import { offlineSavdolarniOlish } from './services/offlineDB';
 import api from './utils/api';
 
-// Himoyalangan route
-function HimoyalananRoute({ children, adminKerak }) {
+// Rol bo'yicha to'g'ri layout tanlash
+function RolLayout({ children, adminKerak }) {
   const { foydalanuvchi, token } = useAuthStore();
 
   if (!token || !foydalanuvchi) {
@@ -26,7 +27,12 @@ function HimoyalananRoute({ children, adminKerak }) {
     return <Navigate to="/kassa" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  // Admin → qora sidebar Layout
+  // Kassir → ko'k header + pastki tab KassirLayout
+  if (foydalanuvchi.rol === 'admin') {
+    return <Layout>{children}</Layout>;
+  }
+  return <KassirLayout>{children}</KassirLayout>;
 }
 
 // Dashboard faqat admin uchun
@@ -37,7 +43,7 @@ function DashboardRoute() {
   return <Layout><Dashboard /></Layout>;
 }
 
-// Asosiy yo'naltirish — admin → dashboard, kassir → kassa
+// Asosiy yo'naltirish
 function AsosiyYonaltirish() {
   const { foydalanuvchi, token } = useAuthStore();
   if (!token || !foydalanuvchi) return <Navigate to="/login" replace />;
@@ -48,25 +54,19 @@ function AsosiyYonaltirish() {
 export default function App() {
   const { token } = useAuthStore();
 
-  // Offline savdolarni sync qilish (online bo'lganda)
+  // Offline sync
   useEffect(() => {
     const syncQilish = async () => {
       if (!navigator.onLine || !token) return;
-
       try {
         const offlineSavdolar = await offlineSavdolarniOlish();
         if (offlineSavdolar.length > 0) {
           await api.post('/savdo/sync/offline', { savdolar: offlineSavdolar });
-          console.log(`✅ ${offlineSavdolar.length} ta offline savdo sync qilindi`);
         }
-      } catch (err) {
-        console.log('Sync xatosi:', err);
-      }
+      } catch {}
     };
-
     window.addEventListener('online', syncQilish);
-    syncQilish(); // Darhol tekshirish
-
+    syncQilish();
     return () => window.removeEventListener('online', syncQilish);
   }, [token]);
 
@@ -76,33 +76,32 @@ export default function App() {
         position="top-right"
         toastOptions={{
           duration: 3000,
-          style: { borderRadius: '8px', fontSize: '14px' },
+          style: { borderRadius: '10px', fontSize: '14px', fontWeight: '500' },
           success: { iconTheme: { primary: '#10b981', secondary: '#fff' } },
           error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
         }}
       />
       <Routes>
         <Route path="/login" element={<Login />} />
-
         <Route path="/dashboard" element={<DashboardRoute />} />
 
         <Route path="/kassa" element={
-          <HimoyalananRoute><Kassa /></HimoyalananRoute>
+          <RolLayout><Kassa /></RolLayout>
         } />
         <Route path="/mahsulotlar" element={
-          <HimoyalananRoute><Mahsulotlar /></HimoyalananRoute>
+          <RolLayout><Mahsulotlar /></RolLayout>
         } />
         <Route path="/ombor" element={
-          <HimoyalananRoute><Ombor /></HimoyalananRoute>
+          <RolLayout><Ombor /></RolLayout>
         } />
         <Route path="/hisobotlar" element={
-          <HimoyalananRoute><Hisobotlar /></HimoyalananRoute>
+          <RolLayout><Hisobotlar /></RolLayout>
         } />
         <Route path="/qarzdarlar" element={
-          <HimoyalananRoute><Qarzdarlar /></HimoyalananRoute>
+          <RolLayout><Qarzdarlar /></RolLayout>
         } />
         <Route path="/foydalanuvchilar" element={
-          <HimoyalananRoute adminKerak={true}><Foydalanuvchilar /></HimoyalananRoute>
+          <RolLayout adminKerak={true}><Foydalanuvchilar /></RolLayout>
         } />
 
         <Route path="/" element={<AsosiyYonaltirish />} />

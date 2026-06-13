@@ -4,6 +4,7 @@ import { pulFormat } from '../utils/format';
 import { onlineMi, offlineSavdoSaqlash, mahsulotlarCacheSaqlash, mahsulotlarCacheOlish, barkodBilanTopish } from '../services/offlineDB';
 import toast from 'react-hot-toast';
 import BarkodScanner from '../components/common/BarkodScanner';
+import ChekModal from '../components/common/ChekModal';
 
 const DEMO_MIJOZLAR = [
   { id: 1, ism: 'Karimov Sardor', telefon: '+998901234567', nasiya_summasi: 150000 },
@@ -794,54 +795,15 @@ export default function Kassa() {
         />
       )}
 
-      {/* Chek Modal */}
-      {chekModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-80 text-center shadow-2xl">
-            <div className="text-4xl mb-2">✅</div>
-            <h3 className="text-lg font-bold text-gray-800 mb-1">Savdo amalga oshirildi!</h3>
-            <p className="text-sm text-gray-500 mb-4">Chek: {chekModal.chek_raqam}</p>
-
-            <div className="bg-gray-50 rounded-lg p-3 text-left space-y-1 mb-4">
-              <div className="flex justify-between text-sm">
-                <span>Jami:</span>
-                <strong>{pulFormat(chekModal.jami_summa)}</strong>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>To'lov:</span>
-                <span className="capitalize">{chekModal.tolov_turi}</span>
-              </div>
-              {chekModal.tolov_turi === 'nasiya' && chekModal.mijoz_ism && (
-                <div className="flex justify-between text-sm text-orange-600">
-                  <span>Mijoz:</span>
-                  <strong>{chekModal.mijoz_ism}</strong>
-                </div>
-              )}
-              {chekModal.qaytim > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Qaytim:</span>
-                  <strong>{pulFormat(chekModal.qaytim)}</strong>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => window.print()}
-                className="btn-secondary"
-              >
-                🖨️ Chop etish
-              </button>
-              <button
-                onClick={() => { setChekModal(null); qidiruvRef.current?.focus(); }}
-                className="btn-primary"
-              >
-                Yangi savdo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Chiroyli Chek Modal */}
+      <ChekModal
+        chek={chekModal}
+        yopish={() => setChekModal(null)}
+        yangiSavdo={() => {
+          setChekModal(null);
+          qidiruvRef.current?.focus();
+        }}
+      />
     </div>
   );
 }
