@@ -292,6 +292,36 @@ export default function Mahsulotlar() {
         )}
       </div>
 
+      {/* Umumiy statistika kartalar */}
+      {!yuklanmoqda && (() => {
+        const jamiMahsulotlar = mahsulotlar.length;
+        const jamiSotishQiymati = mahsulotlar.reduce((s, m) => s + (parseFloat(m.sotish_narxi) || 0) * (parseInt(m.qoldiq) || 0), 0);
+        const jamiSotibOlishQiymati = mahsulotlar.reduce((s, m) => s + (parseFloat(m.sotib_olish_narxi) || 0) * (parseInt(m.qoldiq) || 0), 0);
+        const kamQoldiqlar = mahsulotlar.filter(m => m.qoldiq <= m.min_qoldiq).length;
+        const tugaganlar = mahsulotlar.filter(m => m.qoldiq <= 0).length;
+
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="card text-center py-3">
+              <p className="text-2xl font-bold text-blue-600">{jamiMahsulotlar}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Jami mahsulotlar</p>
+            </div>
+            <div className="card text-center py-3">
+              <p className="text-base font-bold text-green-600">{pulFormat(jamiSotishQiymati)}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Sotish qiymati (jami)</p>
+            </div>
+            <div className="card text-center py-3">
+              <p className="text-base font-bold text-orange-500">{pulFormat(jamiSotibOlishQiymati)}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Sotib olish qiymati</p>
+            </div>
+            <div className="card text-center py-3">
+              <p className="text-2xl font-bold text-red-500">{kamQoldiqlar}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Kam qoldiq / {tugaganlar} tugagan</p>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Filter */}
       <div className="flex gap-3 flex-wrap">
         <input
