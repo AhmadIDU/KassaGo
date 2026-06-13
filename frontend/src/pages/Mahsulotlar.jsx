@@ -217,11 +217,6 @@ function MahsulotModal({ mahsulot, kategoriyalar, yopish, saqlash }) {
     </div>
   );
 }
-        </form>
-      </div>
-    </div>
-  );
-}
 
 export default function Mahsulotlar() {
   const [mahsulotlar, setMahsulotlar] = useState([]);
