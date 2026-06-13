@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #f1f5f9;
+    color: #1e293b;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  .btn-success {
+    @apply bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  .input-field {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4;
+  }
+  .badge-green {
+    @apply bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded-full;
+  }
+  .badge-red {
+    @apply bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-full;
+  }
+  .badge-yellow {
+    @apply bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-1 rounded-full;
+  }
+  .badge-blue {
+    @apply bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full;
+  }
+}
+
+/* Scroll bar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Print styles */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
