@@ -101,6 +101,26 @@ const savdoYaratish = async (req, res) => {
 
     await client.query('COMMIT');
 
+    // ✅ Nasiya bo'lsa — qarzdarlar ro'yxatiga qo'shish
+    if (tolov_turi === 'nasiya' && mijoz_id) {
+      try {
+        // Nasiya jadvaliga qo'shish
+        await pool.query(
+          `INSERT INTO nasiyalar (mijoz_id, savdo_id, summa, qolgan_summa, izoh, kassir_id)
+           VALUES ($1, $2, $3, $3, $4, $5)`,
+          [mijoz_id, savdo.id, yakuniy_summa, `Savdo #${chek_raqam}`, req.foydalanuvchi.id]
+        );
+
+        // Mijoz umumiy qarzini yangilash
+        await pool.query(
+          'UPDATE mijozlar SET nasiya_summasi = nasiya_summasi + $1, yangilangan = NOW() WHERE id = $2',
+          [yakuniy_summa, mijoz_id]
+        );
+      } catch (nasiyaErr) {
+        console.error('Nasiya yozishda xato:', nasiyaErr);
+      }
+    }
+
     // To'liq savdo ma'lumotini qaytarish
     const elementlarRes = await pool.query(
       'SELECT * FROM savdo_elementlari WHERE savdo_id = $1',
