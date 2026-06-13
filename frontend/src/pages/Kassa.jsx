@@ -536,106 +536,101 @@ export default function Kassa() {
     }
   };
 
-  return (
-    <div className="flex gap-4 h-full">
-      {/* Chap: Mahsulot qidiruv */}
-      <div className="flex-1 flex flex-col space-y-4">
-        <h1 className="text-xl font-bold text-gray-800">🛒 Kassa</h1>
+  const emojiKategoriya = (nom) => {
+    if (!nom) return '📦';
+    if (nom.includes('Non')) return '🍞';
+    if (nom.includes('Ichimlik')) return '🥤';
+    if (nom.includes('Sut')) return '🥛';
+    if (nom.includes('Yog')) return '🫙';
+    if (nom.includes('Choy')) return '☕';
+    if (nom.includes('Gigiena')) return '🧴';
+    if (nom.includes('Uy')) return '🧹';
+    if (nom.includes('Shirinlik')) return '🍫';
+    if (nom.includes('Snack')) return '🍿';
+    if (nom.includes('Tuxum')) return '🥚';
+    if (nom.includes('Konserva')) return '🥫';
+    return '📦';
+  };
 
-        {/* Qidiruv + Scanner tugma */}
+  return (
+    <div className="flex gap-3 h-full p-3" style={{ background: '#f0fdf4' }}>
+
+      {/* ===== CHAP: Mahsulotlar ===== */}
+      <div className="flex-1 flex flex-col gap-3 min-w-0">
+
+        {/* Qidiruv + Scanner */}
         <div className="flex gap-2">
           <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500 text-base">🔍</span>
             <input
               ref={qidiruvRef}
               type="text"
               value={qidiruv}
               onChange={(e) => setQidiruv(e.target.value)}
               onKeyDown={barkodSkanerlash}
-              placeholder="🔍 Mahsulot nomi yoki barkod (Enter = qidirish)"
-              className="input-field pl-4 pr-10 py-3 text-base w-full"
+              placeholder="Mahsulot nomi yoki barkod..."
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border-2 border-green-200 focus:border-green-500 focus:outline-none bg-white text-gray-700 font-medium shadow-sm"
             />
             {qidiruv && (
-              <button
-                onClick={() => setQidiruv('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >✕</button>
+              <button onClick={() => setQidiruv('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
             )}
           </div>
-
-          {/* Kamera scanner tugma */}
           <button
             onClick={() => setScannerOchiq(true)}
-            className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 font-medium transition-colors whitespace-nowrap"
-            title="Kamera orqali skanerlash"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white shadow-sm transition-all active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
           >
-            <span className="text-xl">📷</span>
-            <span className="hidden sm:inline text-sm">Skaner</span>
+            <span className="text-lg">📷</span>
+            <span className="text-sm hidden sm:inline">Skaner</span>
           </button>
         </div>
 
         {/* Qidiruv natijalari */}
         {filtrMahsulotlar.length > 0 && (
-          <div className="card max-h-80 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-sm border-2 border-green-100 max-h-72 overflow-y-auto">
             {filtrMahsulotlar.map(m => (
-              <button
-                key={m.id}
-                onClick={() => savatGaQoshish(m)}
-                className="w-full flex justify-between items-center p-3 hover:bg-blue-50 rounded-lg transition-colors text-left border-b last:border-0"
-              >
-                <div>
-                  <p className="font-medium text-gray-800">{m.nom}</p>
-                  <p className="text-xs text-gray-400">{m.barkod || 'Barkod yo\'q'} • Qoldiq: {m.qoldiq} {m.birlik}</p>
+              <button key={m.id} onClick={() => savatGaQoshish(m)}
+                className="w-full flex justify-between items-center p-3 hover:bg-green-50 transition-colors text-left border-b last:border-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{emojiKategoriya(m.kategoriya_nom)}</span>
+                  <div>
+                    <p className="font-semibold text-gray-800 text-sm">{m.nom}</p>
+                    <p className="text-xs text-gray-400">{m.barkod || '—'} • {m.qoldiq} {m.birlik}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-blue-600">{pulFormat(m.sotish_narxi)}</p>
-                  {m.qoldiq <= m.min_qoldiq && (
-                    <span className="badge-yellow text-xs">Kam</span>
-                  )}
-                </div>
+                <p className="font-bold text-green-600 text-sm">{pulFormat(m.sotish_narxi)}</p>
               </button>
             ))}
           </div>
         )}
 
-        {/* Tezkor mahsulotlar */}
+        {/* Mahsulotlar grid */}
         {!qidiruv && (
-          <div className="card flex-1 overflow-y-auto">
-            <p className="text-sm text-gray-500 mb-3">Barcha mahsulotlar ({mahsulotlar.length})</p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {mahsulotlar.slice(0, 30).map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => savatGaQoshish(m)}
-                  disabled={m.qoldiq <= 0}
-                  className="p-3 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          <div className="bg-white rounded-xl shadow-sm border-2 border-green-100 flex-1 overflow-y-auto p-3">
+            <p className="text-xs text-gray-400 font-medium mb-2">📦 {mahsulotlar.length} ta mahsulot</p>
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+              {mahsulotlar.map(m => (
+                <button key={m.id} onClick={() => savatGaQoshish(m)} disabled={m.qoldiq <= 0}
+                  className={`rounded-xl text-left transition-all border-2 overflow-hidden active:scale-95 ${
+                    m.qoldiq <= 0
+                      ? 'opacity-40 cursor-not-allowed border-gray-100 bg-gray-50'
+                      : 'border-green-100 bg-white hover:border-green-400 hover:shadow-md'
+                  }`}
                 >
-                  {/* Rasm */}
-                  <div className="w-full h-16 mb-2 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                  <div className="w-full h-12 bg-green-50 flex items-center justify-center overflow-hidden">
                     {m.rasm ? (
-                      <img
-                        src={m.rasm.startsWith('data:') ? m.rasm : `http://localhost:5000${m.rasm}`}
-                        alt={m.nom}
-                        className="w-full h-full object-cover"
-                      />
+                      <img src={m.rasm.startsWith('data:') ? m.rasm : `http://localhost:5000${m.rasm}`}
+                        alt={m.nom} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-3xl">
-                        {m.kategoriya_nom?.includes('Non') ? '🍞' :
-                         m.kategoriya_nom?.includes('Ichimlik') ? '🥤' :
-                         m.kategoriya_nom?.includes('Sut') ? '🥛' :
-                         m.kategoriya_nom?.includes('Yog') ? '🫙' :
-                         m.kategoriya_nom?.includes('Choy') ? '☕' :
-                         m.kategoriya_nom?.includes('Gigiena') ? '🧴' :
-                         m.kategoriya_nom?.includes('Uy') ? '🧹' :
-                         m.kategoriya_nom?.includes('Shirinlik') ? '🍫' :
-                         m.kategoriya_nom?.includes('Snack') ? '🍿' :
-                         m.kategoriya_nom?.includes('Konserva') ? '🥫' :
-                         m.kategoriya_nom?.includes('Tuxum') ? '🥚' : '📦'}
-                      </span>
+                      <span className="text-xl">{emojiKategoriya(m.kategoriya_nom)}</span>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-gray-800 truncate">{m.nom}</p>
-                  <p className="text-xs text-blue-600 font-bold">{pulFormat(m.sotish_narxi)}</p>
-                  <p className="text-xs text-gray-400">Qoldiq: {m.qoldiq}</p>
+                  <div className="p-1.5">
+                    <p className="text-xs font-semibold text-gray-800 leading-tight truncate">{m.nom}</p>
+                    <p className="text-xs font-bold text-green-600">{pulFormat(m.sotish_narxi)}</p>
+                    <p className="text-xs text-gray-400">{m.qoldiq} {m.birlik}</p>
+                  </div>
                 </button>
               ))}
             </div>
@@ -643,111 +638,129 @@ export default function Kassa() {
         )}
       </div>
 
-      {/* O'ng: Savat */}
-      <div className="w-80 flex flex-col space-y-3">
-        <div className="flex justify-between items-center">
-          <h2 className="font-bold text-gray-800">🛒 Savat ({savat.length})</h2>
+      {/* ===== O'NG: Savat ===== */}
+      <div className="w-72 flex flex-col gap-3 flex-shrink-0">
+
+        {/* Savat header */}
+        <div className="flex justify-between items-center bg-white rounded-xl px-4 py-3 border-2 border-green-100 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🛒</span>
+            <span className="font-bold text-gray-700">Savat</span>
+            {savat.length > 0 && (
+              <span className="bg-green-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {savat.length}
+              </span>
+            )}
+          </div>
           {savat.length > 0 && (
-            <button onClick={savatTozalash} className="text-red-500 text-sm hover:underline">
+            <button onClick={savatTozalash} className="text-xs text-red-400 hover:text-red-600 font-medium">
               Tozalash
             </button>
           )}
         </div>
 
         {/* Savat elementlari */}
-        <div className="card flex-1 overflow-y-auto max-h-72 space-y-2">
+        <div className="bg-white rounded-xl border-2 border-green-100 shadow-sm flex-1 overflow-y-auto max-h-60">
           {savat.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <p className="text-4xl mb-2">🛒</p>
-              <p className="text-sm">Savat bo'sh</p>
-              <p className="text-xs">Mahsulot qo'shing</p>
+            <div className="flex flex-col items-center justify-center h-full py-8 text-gray-300">
+              <span className="text-5xl mb-2">🛒</span>
+              <p className="text-sm font-medium text-gray-400">Savat bo'sh</p>
+              <p className="text-xs text-gray-300">Mahsulot tanlang</p>
             </div>
           ) : (
-            savat.map(el => (
-              <div key={el.mahsulot_id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{el.mahsulot_nom}</p>
-                  <p className="text-xs text-gray-500">{pulFormat(el.narx)}</p>
+            <div className="p-2 space-y-1.5">
+              {savat.map(el => (
+                <div key={el.mahsulot_id}
+                  className="flex items-center gap-2 p-2 rounded-lg bg-green-50 border border-green-100">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 truncate">{el.mahsulot_nom}</p>
+                    <p className="text-xs text-gray-400">{pulFormat(el.narx)}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => miqdorOzgartirish(el.mahsulot_id, el.miqdor - 1)}
+                      className="w-6 h-6 rounded-lg bg-white border border-gray-200 hover:bg-red-50 text-xs font-bold">−</button>
+                    <span className="w-6 text-center text-sm font-bold text-gray-700">{el.miqdor}</span>
+                    <button onClick={() => miqdorOzgartirish(el.mahsulot_id, el.miqdor + 1)}
+                      className="w-6 h-6 rounded-lg bg-white border border-gray-200 hover:bg-green-50 text-xs font-bold">+</button>
+                  </div>
+                  <p className="text-xs font-bold text-green-600 w-16 text-right">{pulFormat(el.jami)}</p>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => miqdorOzgartirish(el.mahsulot_id, el.miqdor - 1)}
-                    className="w-6 h-6 bg-gray-200 hover:bg-red-200 rounded text-xs font-bold"
-                  >-</button>
-                  <span className="w-8 text-center text-sm font-bold">{el.miqdor}</span>
-                  <button
-                    onClick={() => miqdorOzgartirish(el.mahsulot_id, el.miqdor + 1)}
-                    className="w-6 h-6 bg-gray-200 hover:bg-green-200 rounded text-xs font-bold"
-                  >+</button>
-                </div>
-                <p className="text-sm font-bold text-blue-600 w-20 text-right">{pulFormat(el.jami)}</p>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
 
         {/* Hisob-kitob */}
         {savat.length > 0 && (
-          <div className="card space-y-3">
+          <div className="bg-white rounded-xl border-2 border-green-200 shadow-sm p-3 space-y-2.5">
+
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Jami:</span>
-              <span className="font-bold">{pulFormat(jamiSumma)}</span>
+              <span className="font-bold text-gray-800">{pulFormat(jamiSumma)}</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-500 w-20">Chegirma:</label>
-              <input
-                type="number"
-                value={chegirma}
-                onChange={(e) => setChegirma(Number(e.target.value))}
-                className="input-field py-1 text-sm"
-                placeholder="0"
-              />
+              <label className="text-xs text-gray-500 whitespace-nowrap">Chegirma:</label>
+              <input type="number" value={chegirma} onChange={(e) => setChegirma(Number(e.target.value))}
+                className="flex-1 border-2 border-gray-100 focus:border-green-300 rounded-lg px-2 py-1 text-sm focus:outline-none"
+                placeholder="0" />
             </div>
 
-            <div className="flex justify-between text-base font-bold border-t pt-2">
-              <span>To'lash kerak:</span>
-              <span className="text-green-600">{pulFormat(yakuniySumma)}</span>
+            {/* To'lash kerak */}
+            <div className="flex justify-between items-center bg-green-50 rounded-xl px-3 py-2 border border-green-200">
+              <span className="text-sm font-semibold text-gray-600">To'lash:</span>
+              <span className="text-lg font-extrabold text-green-600">{pulFormat(yakuniySumma)}</span>
             </div>
 
             {/* To'lov turi */}
-            <div className="grid grid-cols-3 gap-1">
-              {['naqd', 'karta', 'nasiya'].map(tur => (
-                <button
-                  key={tur}
-                  onClick={() => { setTolovTuri(tur); setTanlanganMijoz(null); }}
-                  className={`py-2 text-xs rounded-lg font-medium transition-colors ${
-                    tolovTuri === tur
-                      ? tur === 'nasiya' ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {tur === 'naqd' ? '💵 Naqd' : tur === 'karta' ? '💳 Karta' : '📝 Nasiya'}
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: 'naqd', label: 'Naqd', icon: '💵' },
+                { id: 'karta', label: 'Karta', icon: '💳' },
+                { id: 'nasiya', label: 'Nasiya', icon: '📝' },
+              ].map(tur => (
+                <button key={tur.id}
+                  onClick={() => { setTolovTuri(tur.id); setTanlanganMijoz(null); }}
+                  className={`py-2 rounded-xl text-xs font-bold transition-all border-2 ${
+                    tolovTuri === tur.id
+                      ? tur.id === 'nasiya'
+                        ? 'bg-orange-500 border-orange-500 text-white shadow-sm'
+                        : 'bg-green-500 border-green-500 text-white shadow-sm'
+                      : 'bg-white border-gray-200 text-gray-500 hover:border-green-300'
+                  }`}>
+                  <div>{tur.icon}</div>
+                  <div>{tur.label}</div>
                 </button>
               ))}
             </div>
 
-            {/* Naqd — qaytim */}
+            {/* Naqd */}
             {tolovTuri === 'naqd' && (
               <div>
-                <input
-                  type="number"
-                  value={tolovSummasi}
-                  onChange={(e) => setTolovSummasi(e.target.value)}
-                  className="input-field py-2 text-base"
-                  placeholder="Qabul qilingan summa"
-                />
+                <input type="number" value={tolovSummasi} onChange={(e) => setTolovSummasi(e.target.value)}
+                  className="w-full border-2 border-gray-100 focus:border-green-400 rounded-xl px-3 py-2 text-base font-bold focus:outline-none"
+                  placeholder="Qabul qilingan summa" />
                 {parseFloat(tolovSummasi) > 0 && (
-                  <p className="text-sm text-center mt-1">
-                    Qaytim: <strong className="text-green-600">{pulFormat(Math.max(0, qaytim))}</strong>
-                  </p>
+                  <div className="flex justify-between mt-1 px-1">
+                    <span className="text-xs text-gray-500">Qaytim:</span>
+                    <span className="text-sm font-bold text-green-600">{pulFormat(Math.max(0, qaytim))}</span>
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Nasiya — mijoz tanlash */}
+            {/* Karta */}
+            {tolovTuri === 'karta' && (
+              <div className="bg-blue-50 rounded-xl p-2.5 text-center border border-blue-100">
+                <p className="text-xs text-blue-600 font-semibold">
+                  💳 Karta: <strong>{pulFormat(yakuniySumma)}</strong>
+                </p>
+              </div>
+            )}
+
+            {/* Nasiya */}
             {tolovTuri === 'nasiya' && (
-              <div className="bg-orange-50 rounded-lg p-3 space-y-2">
+              <div className="bg-orange-50 rounded-xl p-2.5 border border-orange-200 space-y-2">
                 <MijozTanlash
                   tanlangan={tanlanganMijoz}
                   onTanlash={setTanlanganMijoz}
@@ -755,54 +768,35 @@ export default function Kassa() {
                   onMijozQoshildi={mijozQoshildi}
                 />
                 {tanlanganMijoz && (
-                  <div className="text-xs text-orange-700 bg-orange-100 rounded p-2">
-                    ⚠️ <strong>{pulFormat(yakuniySumma)}</strong> nasiyaga yoziladi
-                  </div>
-                )}
-                {!tanlanganMijoz && (
-                  <p className="text-xs text-orange-500 text-center">
-                    Nasiya uchun mijoz tanlanishi shart
+                  <p className="text-xs text-orange-600 text-center font-medium">
+                    ⚠️ {pulFormat(yakuniySumma)} nasiyaga yoziladi
                   </p>
                 )}
               </div>
             )}
 
-            {/* Karta */}
-            {tolovTuri === 'karta' && (
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="text-sm text-blue-600 font-medium">
-                  💳 Karta orqali: <strong>{pulFormat(yakuniySumma)}</strong>
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={savdoYakunlash}
+            {/* Yakunlash */}
+            <button onClick={savdoYakunlash}
               disabled={yuklanmoqda || savat.length === 0}
-              className="btn-success w-full py-3 text-base font-bold"
+              className="w-full py-3 rounded-xl font-extrabold text-sm text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
+              style={{ background: yuklanmoqda ? '#9ca3af' : 'linear-gradient(135deg, #16a34a, #15803d)' }}
             >
-              {yuklanmoqda ? '⏳ Saqlanmoqda...' : '✅ Savdoni Yakunlash'}
+              {yuklanmoqda ? '⏳ Saqlanmoqda...' : `✅ Yakunlash — ${pulFormat(yakuniySumma)}`}
             </button>
           </div>
         )}
       </div>
 
-      {/* Barkod Scanner Modal */}
+      {/* Scanner */}
       {scannerOchiq && (
-        <BarkodScanner
-          onSkanerlandi={barkodSkanerlandi}
-          yopish={() => setScannerOchiq(false)}
-        />
+        <BarkodScanner onSkanerlandi={barkodSkanerlandi} yopish={() => setScannerOchiq(false)} />
       )}
 
-      {/* Chiroyli Chek Modal */}
+      {/* Chek */}
       <ChekModal
         chek={chekModal}
         yopish={() => setChekModal(null)}
-        yangiSavdo={() => {
-          setChekModal(null);
-          qidiruvRef.current?.focus();
-        }}
+        yangiSavdo={() => { setChekModal(null); qidiruvRef.current?.focus(); }}
       />
     </div>
   );
