@@ -17,7 +17,11 @@ export default function Login() {
 
     const natija = await login(form.login, form.parol);
     if (natija.muvaffaqiyat) {
-      toast.success('Xush kelibsiz!');
+      if (natija.demo) {
+        toast.success('Xush kelibsiz! (Demo rejim)', { icon: '🎭' });
+      } else {
+        toast.success('Xush kelibsiz!');
+      }
       navigate('/dashboard');
     } else {
       toast.error(natija.xato || 'Kirishda xato!');

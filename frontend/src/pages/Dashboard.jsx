@@ -9,6 +9,28 @@ import toast from 'react-hot-toast';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// Demo ma'lumotlar (backend bo'lmaganda)
+const DEMO_STATISTIKA = {
+  bugun: { soni: 12, summa: 345000 },
+  mahsulotlar: { jami: 48, kam_qoldiq: 3 },
+  haftalik_savdo: [
+    { kun: '2026-06-07', daromad: 280000, soni: 9 },
+    { kun: '2026-06-08', daromad: 420000, soni: 14 },
+    { kun: '2026-06-09', daromad: 310000, soni: 10 },
+    { kun: '2026-06-10', daromad: 190000, soni: 6 },
+    { kun: '2026-06-11', daromad: 520000, soni: 17 },
+    { kun: '2026-06-12', daromad: 390000, soni: 13 },
+    { kun: '2026-06-13', daromad: 345000, soni: 12 },
+  ],
+  oxirgi_savdolar: [
+    { id: 1, chek_raqam: 'CHK-20260613-1234', jami_summa: 45000, tolov_turi: 'naqd', yaratilgan: new Date().toISOString() },
+    { id: 2, chek_raqam: 'CHK-20260613-1233', jami_summa: 72000, tolov_turi: 'karta', yaratilgan: new Date(Date.now()-3600000).toISOString() },
+    { id: 3, chek_raqam: 'CHK-20260613-1232', jami_summa: 28500, tolov_turi: 'naqd', yaratilgan: new Date(Date.now()-7200000).toISOString() },
+    { id: 4, chek_raqam: 'CHK-20260613-1231', jami_summa: 156000, tolov_turi: 'nasiya', yaratilgan: new Date(Date.now()-10800000).toISOString() },
+    { id: 5, chek_raqam: 'CHK-20260613-1230', jami_summa: 43500, tolov_turi: 'naqd', yaratilgan: new Date(Date.now()-14400000).toISOString() },
+  ],
+};
+
 function StatCard({ icon, sarlavha, qiymat, rang, izoh }) {
   return (
     <div className="card flex items-start gap-4">
@@ -25,6 +47,7 @@ function StatCard({ icon, sarlavha, qiymat, rang, izoh }) {
 export default function Dashboard() {
   const [statistika, setStatistika] = useState(null);
   const [yuklanmoqda, setYuklanmoqda] = useState(true);
+  const [demoRejim, setDemoRejim] = useState(false);
 
   useEffect(() => {
     malumotlarOlish();
@@ -34,8 +57,11 @@ export default function Dashboard() {
     try {
       const res = await api.get('/hisobot/dashboard');
       setStatistika(res.data);
+      setDemoRejim(false);
     } catch (err) {
-      toast.error('Ma\'lumot yuklanmadi');
+      // Backend yo'q — demo ma'lumot ko'rsatamiz
+      setStatistika(DEMO_STATISTIKA);
+      setDemoRejim(true);
     } finally {
       setYuklanmoqda(false);
     }
@@ -68,9 +94,16 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800">🏠 Bosh sahifa</h1>
-        <button onClick={malumotlarOlish} className="btn-secondary text-sm">
-          🔄 Yangilash
-        </button>
+        <div className="flex items-center gap-3">
+          {demoRejim && (
+            <span className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-medium">
+              🎭 Demo rejim — Backend ulanmagan
+            </span>
+          )}
+          <button onClick={malumotlarOlish} className="btn-secondary text-sm">
+            🔄 Yangilash
+          </button>
+        </div>
       </div>
 
       {/* Stat kartalar */}

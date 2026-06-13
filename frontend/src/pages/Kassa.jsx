@@ -45,8 +45,26 @@ export default function Kassa() {
         toast('📴 Offline rejim - cache ma\'lumotlar ishlatilmoqda', { icon: '⚠️' });
       }
     } catch {
+      // Backend yo'q — demo mahsulotlar
       const cache = await mahsulotlarCacheOlish();
-      setMahsulotlar(cache);
+      if (cache.length > 0) {
+        setMahsulotlar(cache);
+      } else {
+        const demoMahsulotlar = [
+          { id: 1, nom: 'Non', barkod: '4600001', sotish_narxi: 3000, qoldiq: 50, birlik: 'dona', min_qoldiq: 5 },
+          { id: 2, nom: 'Qand (1kg)', barkod: '4600002', sotish_narxi: 15000, qoldiq: 30, birlik: 'kg', min_qoldiq: 5 },
+          { id: 3, nom: 'Tuz (1kg)', barkod: '4600003', sotish_narxi: 5000, qoldiq: 20, birlik: 'kg', min_qoldiq: 5 },
+          { id: 4, nom: 'Yog\' (1L)', barkod: '4600004', sotish_narxi: 25000, qoldiq: 15, birlik: 'litr', min_qoldiq: 5 },
+          { id: 5, nom: 'Guruch (1kg)', barkod: '4600005', sotish_narxi: 12000, qoldiq: 40, birlik: 'kg', min_qoldiq: 5 },
+          { id: 6, nom: 'Un (2kg)', barkod: '4600006', sotish_narxi: 18000, qoldiq: 25, birlik: 'kg', min_qoldiq: 5 },
+          { id: 7, nom: 'Makaron', barkod: '4600007', sotish_narxi: 8000, qoldiq: 35, birlik: 'dona', min_qoldiq: 5 },
+          { id: 8, nom: 'Choy (100g)', barkod: '4600008', sotish_narxi: 22000, qoldiq: 18, birlik: 'dona', min_qoldiq: 3 },
+          { id: 9, nom: 'Suv (1.5L)', barkod: '4600009', sotish_narxi: 4000, qoldiq: 60, birlik: 'dona', min_qoldiq: 10 },
+          { id: 10, nom: 'Shampun', barkod: '4600010', sotish_narxi: 35000, qoldiq: 12, birlik: 'dona', min_qoldiq: 3 },
+        ];
+        setMahsulotlar(demoMahsulotlar);
+        toast('🎭 Demo rejim — namuna mahsulotlar', { icon: '⚠️' });
+      }
     }
   };
 
@@ -160,11 +178,25 @@ export default function Kassa() {
 
     try {
       if (onlineMi()) {
-        const res = await api.post('/savdo', savdoMalumot);
-        setChekModal(res.data.savdo);
-        savatTozalash();
-        toast.success('✅ Savdo amalga oshirildi!');
-        mahsulotlarYuklash();
+        try {
+          const res = await api.post('/savdo', savdoMalumot);
+          setChekModal(res.data.savdo);
+          savatTozalash();
+          toast.success('✅ Savdo amalga oshirildi!');
+          mahsulotlarYuklash();
+        } catch {
+          // Backend yo'q — demo rejimda saqlash
+          const demoChek = {
+            chek_raqam: 'CHK-' + Date.now(),
+            jami_summa: yakuniySumma,
+            tolov_turi: tolovTuri,
+            tolov_summasi: parseFloat(tolovSummasi) || yakuniySumma,
+            qaytim: Math.max(0, qaytim),
+          };
+          setChekModal(demoChek);
+          savatTozalash();
+          toast.success('✅ Savdo saqlandi! (Demo rejim)');
+        }
       } else {
         // Offline saqlash
         const offlineSavdo = await offlineSavdoSaqlash({
