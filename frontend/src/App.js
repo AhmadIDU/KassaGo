@@ -10,6 +10,7 @@ import Mahsulotlar from './pages/Mahsulotlar';
 import Ombor from './pages/Ombor';
 import Hisobotlar from './pages/Hisobotlar';
 import Foydalanuvchilar from './pages/Foydalanuvchilar';
+import Qarzdarlar from './pages/Qarzdarlar';
 import { offlineSavdolarniOlish } from './services/offlineDB';
 import api from './utils/api';
 
@@ -81,6 +82,9 @@ export default function App() {
         } />
         <Route path="/hisobotlar" element={
           <HimoyalananRoute><Hisobotlar /></HimoyalananRoute>
+        } />
+        <Route path="/qarzdarlar" element={
+          <HimoyalananRoute><Qarzdarlar /></HimoyalananRoute>
         } />
         <Route path="/foydalanuvchilar" element={
           <HimoyalananRoute adminKerak={true}><Foydalanuvchilar /></HimoyalananRoute>

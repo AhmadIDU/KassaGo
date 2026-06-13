@@ -23,6 +23,7 @@ app.use('/api/mahsulotlar', require('./routes/mahsulotlar'));
 app.use('/api/savdo', require('./routes/savdo'));
 app.use('/api/ombor', require('./routes/ombor'));
 app.use('/api/hisobot', require('./routes/hisobot'));
+app.use('/api/nasiya', require('./routes/nasiya'));
 
 // Asosiy test route
 app.get('/api', (req, res) => {

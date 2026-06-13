@@ -4,8 +4,93 @@ import { pulFormat } from '../utils/format';
 import { onlineMi, offlineSavdoSaqlash, mahsulotlarCacheSaqlash, mahsulotlarCacheOlish, barkodBilanTopish } from '../services/offlineDB';
 import toast from 'react-hot-toast';
 
+const DEMO_MIJOZLAR = [
+  { id: 1, ism: 'Karimov Sardor', telefon: '+998901234567', nasiya_summasi: 150000 },
+  { id: 2, ism: 'Rahimova Malika', telefon: '+998909876543', nasiya_summasi: 75000 },
+  { id: 3, ism: 'Toshmatov Jasur', telefon: '+998911112233', nasiya_summasi: 320000 },
+  { id: 4, ism: 'Yusupova Dilnoza', telefon: '+998935556677', nasiya_summasi: 0 },
+];
+
+// Mijoz tanlash komponenti (nasiya uchun)
+function MijozTanlash({ tanlangan, onTanlash, mijozlar, yuklanmoqda }) {
+  const [qidiruv, setQidiruv] = useState('');
+  const [ochiq, setOchiq] = useState(false);
+
+  const filtrlangan = mijozlar.filter(m =>
+    !qidiruv ||
+    m.ism.toLowerCase().includes(qidiruv.toLowerCase()) ||
+    m.telefon?.includes(qidiruv)
+  );
+
+  return (
+    <div className="relative">
+      <label className="text-xs text-gray-500 font-medium mb-1 block">
+        📝 Mijoz (nasiya uchun) *
+      </label>
+      {tanlangan ? (
+        <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+          <div>
+            <p className="text-sm font-medium text-orange-800">{tanlangan.ism}</p>
+            <p className="text-xs text-orange-500">
+              {tanlangan.telefon} • Qarz: {pulFormat(tanlangan.nasiya_summasi)}
+            </p>
+          </div>
+          <button
+            onClick={() => onTanlash(null)}
+            className="text-orange-400 hover:text-orange-600 ml-2"
+          >✕</button>
+        </div>
+      ) : (
+        <div>
+          <div className="relative">
+            <input
+              type="text"
+              value={qidiruv}
+              onChange={e => { setQidiruv(e.target.value); setOchiq(true); }}
+              onFocus={() => setOchiq(true)}
+              placeholder="Mijoz ism yoki telefon qidiring..."
+              className="input-field text-sm"
+              autoFocus
+            />
+            {yuklanmoqda && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">⏳</span>
+            )}
+          </div>
+          {ochiq && (
+            <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+              {filtrlangan.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">Mijoz topilmadi</p>
+              ) : (
+                filtrlangan.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => { onTanlash(m); setOchiq(false); setQidiruv(''); }}
+                    className="w-full flex justify-between items-center px-3 py-2 hover:bg-orange-50 text-left border-b last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{m.ism}</p>
+                      <p className="text-xs text-gray-400">{m.telefon || '—'}</p>
+                    </div>
+                    {m.nasiya_summasi > 0 && (
+                      <span className="text-xs text-red-500 font-medium">
+                        Qarz: {pulFormat(m.nasiya_summasi)}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Kassa() {
   const [mahsulotlar, setMahsulotlar] = useState([]);
+  const [mijozlar, setMijozlar] = useState([]);
+  const [tanlanganMijoz, setTanlanganMijoz] = useState(null);
   const [savat, setSavat] = useState([]);
   const [qidiruv, setQidiruv] = useState('');
   const [filtrMahsulotlar, setFiltrMahsulotlar] = useState([]);
@@ -18,6 +103,7 @@ export default function Kassa() {
 
   useEffect(() => {
     mahsulotlarYuklash();
+    mijozlarYuklash();
     qidiruvRef.current?.focus();
   }, []);
 
@@ -65,6 +151,15 @@ export default function Kassa() {
         setMahsulotlar(demoMahsulotlar);
         toast('🎭 Demo rejim — namuna mahsulotlar', { icon: '⚠️' });
       }
+    }
+  };
+
+  const mijozlarYuklash = async () => {
+    try {
+      const res = await api.get('/nasiya/mijozlar');
+      setMijozlar(res.data);
+    } catch {
+      setMijozlar(DEMO_MIJOZLAR);
     }
   };
 
@@ -144,6 +239,8 @@ export default function Kassa() {
     setSavat([]);
     setTolovSummasi('');
     setChegirma(0);
+    setTanlanganMijoz(null);
+    setTolovTuri('naqd');
     qidiruvRef.current?.focus();
   };
 
@@ -161,6 +258,10 @@ export default function Kassa() {
       toast.error('To\'lov summasi yetarli emas!');
       return;
     }
+    if (tolovTuri === 'nasiya' && !tanlanganMijoz) {
+      toast.error('Nasiya uchun mijoz tanlanishi shart!');
+      return;
+    }
 
     setYuklanmoqda(true);
 
@@ -174,6 +275,7 @@ export default function Kassa() {
       tolov_turi: tolovTuri,
       tolov_summasi: parseFloat(tolovSummasi) || yakuniySumma,
       chegirma: chegirma || 0,
+      mijoz_id: tanlanganMijoz?.id || null,
     };
 
     try {
@@ -192,6 +294,7 @@ export default function Kassa() {
             tolov_turi: tolovTuri,
             tolov_summasi: parseFloat(tolovSummasi) || yakuniySumma,
             qaytim: Math.max(0, qaytim),
+            mijoz_ism: tanlanganMijoz?.ism || null,
           };
           setChekModal(demoChek);
           savatTozalash();
@@ -360,10 +463,10 @@ export default function Kassa() {
               {['naqd', 'karta', 'nasiya'].map(tur => (
                 <button
                   key={tur}
-                  onClick={() => setTolovTuri(tur)}
+                  onClick={() => { setTolovTuri(tur); setTanlanganMijoz(null); }}
                   className={`py-2 text-xs rounded-lg font-medium transition-colors ${
                     tolovTuri === tur
-                      ? 'bg-blue-600 text-white'
+                      ? tur === 'nasiya' ? 'bg-orange-500 text-white' : 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -372,6 +475,7 @@ export default function Kassa() {
               ))}
             </div>
 
+            {/* Naqd — qaytim */}
             {tolovTuri === 'naqd' && (
               <div>
                 <input
@@ -386,6 +490,37 @@ export default function Kassa() {
                     Qaytim: <strong className="text-green-600">{pulFormat(Math.max(0, qaytim))}</strong>
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Nasiya — mijoz tanlash */}
+            {tolovTuri === 'nasiya' && (
+              <div className="bg-orange-50 rounded-lg p-3 space-y-2">
+                <MijozTanlash
+                  tanlangan={tanlanganMijoz}
+                  onTanlash={setTanlanganMijoz}
+                  mijozlar={mijozlar}
+                  yuklanmoqda={false}
+                />
+                {tanlanganMijoz && (
+                  <div className="text-xs text-orange-700 bg-orange-100 rounded p-2">
+                    ⚠️ <strong>{pulFormat(yakuniySumma)}</strong> nasiyaga yoziladi
+                  </div>
+                )}
+                {!tanlanganMijoz && (
+                  <p className="text-xs text-orange-500 text-center">
+                    Nasiya uchun mijoz tanlanishi shart
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Karta */}
+            {tolovTuri === 'karta' && (
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-sm text-blue-600 font-medium">
+                  💳 Karta orqali: <strong>{pulFormat(yakuniySumma)}</strong>
+                </p>
               </div>
             )}
 
@@ -417,6 +552,12 @@ export default function Kassa() {
                 <span>To'lov:</span>
                 <span className="capitalize">{chekModal.tolov_turi}</span>
               </div>
+              {chekModal.tolov_turi === 'nasiya' && chekModal.mijoz_ism && (
+                <div className="flex justify-between text-sm text-orange-600">
+                  <span>Mijoz:</span>
+                  <strong>{chekModal.mijoz_ism}</strong>
+                </div>
+              )}
               {chekModal.qaytim > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Qaytim:</span>

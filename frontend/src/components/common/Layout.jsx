@@ -8,6 +8,7 @@ const menuItems = [
   { path: '/kassa', label: 'Kassa', icon: '🛒' },
   { path: '/mahsulotlar', label: 'Mahsulotlar', icon: '📦' },
   { path: '/ombor', label: 'Ombor', icon: '🏪' },
+  { path: '/qarzdarlar', label: 'Qarzdarlar', icon: '💳' },
   { path: '/hisobotlar', label: 'Hisobotlar', icon: '📊' },
 ];
 

@@ -102,8 +102,41 @@ const createTables = async () => {
         id SERIAL PRIMARY KEY,
         ism VARCHAR(100) NOT NULL,
         telefon VARCHAR(20),
+        manzil VARCHAR(255),
+        izoh TEXT,
         nasiya_summasi DECIMAL(12,2) DEFAULT 0,
         faol BOOLEAN DEFAULT true,
+        yaratilgan TIMESTAMP DEFAULT NOW(),
+        yangilangan TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Nasiyalar jadvali
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nasiyalar (
+        id SERIAL PRIMARY KEY,
+        mijoz_id INTEGER REFERENCES mijozlar(id),
+        savdo_id INTEGER REFERENCES savdolar(id),
+        summa DECIMAL(12,2) NOT NULL,
+        qolgan_summa DECIMAL(12,2) NOT NULL,
+        muddati TIMESTAMP,
+        izoh TEXT,
+        holat VARCHAR(20) DEFAULT 'ochiq' CHECK (holat IN ('ochiq', 'yopiq')),
+        kassir_id INTEGER REFERENCES foydalanuvchilar(id),
+        yaratilgan TIMESTAMP DEFAULT NOW(),
+        yangilangan TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    // Nasiya to'lovlar jadvali
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nasiya_tolovlar (
+        id SERIAL PRIMARY KEY,
+        nasiya_id INTEGER REFERENCES nasiyalar(id),
+        mijoz_id INTEGER REFERENCES mijozlar(id),
+        summa DECIMAL(12,2) NOT NULL,
+        izoh TEXT,
+        kassir_id INTEGER REFERENCES foydalanuvchilar(id),
         yaratilgan TIMESTAMP DEFAULT NOW()
       );
     `);
