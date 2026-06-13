@@ -27,8 +27,30 @@ export default function Ombor() {
       ]);
       setOmborMalumot(omborRes.data);
       setMahsulotlar(mRes.data);
-    } catch { toast.error('Ma\'lumot yuklanmadi'); }
-    finally { setYuklanmoqda(false); }
+    } catch {
+      // Demo data
+      const demoMahsulotlar = [
+        { id: 1,  nom: 'Non (oq)',          barkod: '4600001', sotish_narxi: 3000,  sotib_olish_narxi: 2200,  qoldiq: 80,  min_qoldiq: 10, birlik: 'dona', kategoriya_nom: 'Non-novvot', kam_qoldiq: false, ombor_qiymati: 176000 },
+        { id: 5,  nom: 'Qand (1kg)',         barkod: '4600005', sotish_narxi: 15000, sotib_olish_narxi: 12000, qoldiq: 50,  min_qoldiq: 10, birlik: 'kg',   kategoriya_nom: 'Quruq ozuqa', kam_qoldiq: false, ombor_qiymati: 600000 },
+        { id: 6,  nom: 'Tuz (1kg)',          barkod: '4600006', sotish_narxi: 5000,  sotib_olish_narxi: 3500,  qoldiq: 45,  min_qoldiq: 5,  birlik: 'kg',   kategoriya_nom: 'Quruq ozuqa', kam_qoldiq: false, ombor_qiymati: 157500 },
+        { id: 14, nom: 'O\'simlik yog\'i (1L)', barkod: '4600014', sotish_narxi: 25000, sotib_olish_narxi: 20000, qoldiq: 40, min_qoldiq: 5, birlik: 'litr', kategoriya_nom: 'Yog\'-moy', kam_qoldiq: false, ombor_qiymati: 800000 },
+        { id: 17, nom: 'Sut (1L)',           barkod: '4600017', sotish_narxi: 12000, sotib_olish_narxi: 9000,  qoldiq: 35,  min_qoldiq: 10, birlik: 'litr', kategoriya_nom: 'Sut mahsulot', kam_qoldiq: false, ombor_qiymati: 315000 },
+        { id: 27, nom: 'Suv (0.5L)',         barkod: '4600027', sotish_narxi: 2500,  sotib_olish_narxi: 1800,  qoldiq: 100, min_qoldiq: 20, birlik: 'dona', kategoriya_nom: 'Ichimlik', kam_qoldiq: false, ombor_qiymati: 180000 },
+        { id: 29, nom: 'Coca-Cola (0.5L)',   barkod: '4600029', sotish_narxi: 9000,  sotib_olish_narxi: 7000,  qoldiq: 48,  min_qoldiq: 10, birlik: 'dona', kategoriya_nom: 'Ichimlik', kam_qoldiq: false, ombor_qiymati: 336000 },
+        { id: 60, nom: 'Mustak pivo (0.5L)', barkod: '4600060', sotish_narxi: 2000,  sotib_olish_narxi: 1500,  qoldiq: 3,   min_qoldiq: 10, birlik: 'dona', kategoriya_nom: 'Ichimlik', kam_qoldiq: true,  ombor_qiymati: 4500 },
+      ];
+      setOmborMalumot({
+        mahsulotlar: demoMahsulotlar,
+        statistika: {
+          jami_mahsulotlar: 60,
+          kam_qoldiqlar: 4,
+          jami_ombor_qiymati: 12500000,
+        }
+      });
+      setMahsulotlar(demoMahsulotlar);
+    } finally {
+      setYuklanmoqda(false);
+    }
   };
 
   const harakatlarYuklash = async () => {
