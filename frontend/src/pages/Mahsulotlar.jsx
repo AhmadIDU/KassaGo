@@ -73,6 +73,23 @@ function MahsulotModal({ mahsulot, kategoriyalar, yopish, saqlash }) {
     nom: '', barkod: '', kategoriya_id: '', sotish_narxi: '',
     sotib_olish_narxi: '', qoldiq: 0, min_qoldiq: 5, birlik: 'dona'
   });
+  const [rasmPreview, setRasmPreview] = useState(mahsulot?.rasm || null);
+  const rasmInputRef = React.useRef(null);
+
+  const rasmTanlash = (e) => {
+    const fayl = e.target.files[0];
+    if (!fayl) return;
+    if (fayl.size > 2 * 1024 * 1024) {
+      toast.error('Rasm hajmi 2MB dan oshmasligi kerak!');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setRasmPreview(ev.target.result);
+      setForm(prev => ({ ...prev, rasm: ev.target.result }));
+    };
+    reader.readAsDataURL(fayl);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -85,15 +102,67 @@ function MahsulotModal({ mahsulot, kategoriyalar, yopish, saqlash }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-        <div className="p-4 border-b flex justify-between items-center">
-          <h3 className="font-bold text-lg">{mahsulot ? 'Mahsulot tahrirlash' : 'Yangi mahsulot'}</h3>
-          <button onClick={yopish} className="text-gray-400 hover:text-gray-600">✕</button>
+      <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[95vh] overflow-y-auto">
+        <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+          <h3 className="font-bold text-lg">{mahsulot ? '✏️ Mahsulot tahrirlash' : '➕ Yangi mahsulot'}</h3>
+          <button onClick={yopish} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
+
+          {/* Rasm yuklash */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">📸 Mahsulot rasmi</label>
+            <div className="flex items-center gap-3">
+              {/* Rasm ko'rinishi */}
+              <div
+                onClick={() => rasmInputRef.current?.click()}
+                className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center bg-gray-50 transition-colors flex-shrink-0"
+              >
+                {rasmPreview ? (
+                  <img
+                    src={rasmPreview}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center text-gray-400">
+                    <div className="text-2xl">📷</div>
+                    <div className="text-xs mt-0.5">Rasm</div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => rasmInputRef.current?.click()}
+                  className="btn-secondary text-sm w-full"
+                >
+                  {rasmPreview ? '🔄 Rasmni o\'zgartirish' : '📤 Rasm yuklash'}
+                </button>
+                {rasmPreview && (
+                  <button
+                    type="button"
+                    onClick={() => { setRasmPreview(null); setForm(p => ({ ...p, rasm: null })); }}
+                    className="text-xs text-red-500 hover:underline mt-1 w-full text-center block"
+                  >
+                    🗑️ Rasmni o'chirish
+                  </button>
+                )}
+                <p className="text-xs text-gray-400 mt-1">JPG, PNG • Max 2MB</p>
+              </div>
+            </div>
+            <input
+              ref={rasmInputRef}
+              type="file"
+              accept="image/*"
+              onChange={rasmTanlash}
+              className="hidden"
+            />
+          </div>
+
           <div>
             <label className="text-sm font-medium text-gray-700">Nomi *</label>
-            <input className="input-field mt-1" value={form.nom} onChange={e => setForm({...form, nom: e.target.value})} placeholder="Mahsulot nomi" />
+            <input className="input-field mt-1" value={form.nom} onChange={e => setForm({...form, nom: e.target.value})} placeholder="Mahsulot nomi" autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -135,13 +204,19 @@ function MahsulotModal({ mahsulot, kategoriyalar, yopish, saqlash }) {
                 <option value="litr">litr</option>
                 <option value="metr">metr</option>
                 <option value="paket">paket</option>
+                <option value="quti">quti</option>
               </select>
             </div>
           </div>
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={yopish} className="btn-secondary flex-1">Bekor</button>
-            <button type="submit" className="btn-primary flex-1">Saqlash</button>
+            <button type="submit" className="btn-primary flex-1">💾 Saqlash</button>
           </div>
+        </form>
+      </div>
+    </div>
+  );
+}
         </form>
       </div>
     </div>
@@ -270,9 +345,41 @@ export default function Mahsulotlar() {
                 ) : (
                   filtrlangan.map(m => (
                     <tr key={m.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-800">{m.nom}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {/* Rasm yoki emoji */}
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center border border-gray-200">
+                            {m.rasm ? (
+                              <img
+                                src={m.rasm.startsWith('data:') ? m.rasm : `http://localhost:5000${m.rasm}`}
+                                alt={m.nom}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-lg">
+                                {m.kategoriya_nom?.includes('Non') ? '🍞' :
+                                 m.kategoriya_nom?.includes('Ichimlik') ? '🥤' :
+                                 m.kategoriya_nom?.includes('Sut') ? '🥛' :
+                                 m.kategoriya_nom?.includes('Yog') ? '🫙' :
+                                 m.kategoriya_nom?.includes('Choy') ? '☕' :
+                                 m.kategoriya_nom?.includes('Gigiena') ? '🧴' :
+                                 m.kategoriya_nom?.includes('Uy') ? '🧹' :
+                                 m.kategoriya_nom?.includes('Shirinlik') ? '🍫' :
+                                 m.kategoriya_nom?.includes('Snack') ? '🍿' :
+                                 m.kategoriya_nom?.includes('Konserva') ? '🥫' :
+                                 m.kategoriya_nom?.includes('Ziravori') ? '🌶️' :
+                                 m.kategoriya_nom?.includes('Tuxum') ? '🥚' : '📦'}
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-800">{m.nom}</p>
+                            <p className="text-xs text-gray-400">{m.kategoriya_nom || '—'}</p>
+                          </div>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-gray-500 font-mono">{m.barkod || '—'}</td>
-                      <td className="px-4 py-3 text-gray-500">{m.kategoriya_nom || '—'}</td>
+                      <td className="px-4 py-3 text-gray-500 hidden md:table-cell">{m.kategoriya_nom || '—'}</td>
                       <td className="px-4 py-3 text-right font-bold text-blue-600">{pulFormat(m.sotish_narxi)}</td>
                       <td className="px-4 py-3 text-right">
                         <span className={m.qoldiq <= m.min_qoldiq ? 'text-red-600 font-bold' : 'text-gray-700'}>

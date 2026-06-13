@@ -3,6 +3,7 @@ import api from '../utils/api';
 import { pulFormat } from '../utils/format';
 import { onlineMi, offlineSavdoSaqlash, mahsulotlarCacheSaqlash, mahsulotlarCacheOlish, barkodBilanTopish } from '../services/offlineDB';
 import toast from 'react-hot-toast';
+import BarkodScanner from '../components/common/BarkodScanner';
 
 const DEMO_MIJOZLAR = [
   { id: 1, ism: 'Karimov Sardor', telefon: '+998901234567', nasiya_summasi: 150000 },
@@ -99,6 +100,7 @@ export default function Kassa() {
   const [chegirma, setChegirma] = useState(0);
   const [yuklanmoqda, setYuklanmoqda] = useState(false);
   const [chekModal, setChekModal] = useState(null);
+  const [scannerOchiq, setScannerOchiq] = useState(false);
   const qidiruvRef = useRef(null);
 
   useEffect(() => {
@@ -238,7 +240,36 @@ export default function Kassa() {
     }
   };
 
-  // Barkod scanner uchun
+  // Kamera orqali barkod skanerlanganda
+  const barkodSkanerlandi = async (barkod) => {
+    setScannerOchiq(false);
+
+    // Mahsulotlar ichidan qidirish
+    let mahsulot = mahsulotlar.find(m => m.barkod === barkod);
+
+    // Topilmasa backend dan qidirish
+    if (!mahsulot && onlineMi()) {
+      try {
+        const res = await api.get(`/mahsulotlar/barkod/${barkod}`);
+        mahsulot = res.data;
+      } catch {}
+    }
+
+    // Offline cache dan qidirish
+    if (!mahsulot) {
+      mahsulot = await barkodBilanTopish(barkod);
+    }
+
+    if (mahsulot) {
+      savatGaQoshish(mahsulot);
+      toast.success(`✅ ${mahsulot.nom} savatga qo'shildi!`, { duration: 1500 });
+    } else {
+      toast.error(`❌ "${barkod}" barkodi topilmadi!`);
+    }
+    qidiruvRef.current?.focus();
+  };
+
+  // Barkod scanner uchun (klaviatura)
   const barkodSkanerlash = async (e) => {
     if (e.key === 'Enter' && qidiruv) {
       // Aniq barkod qidirish
@@ -399,25 +430,35 @@ export default function Kassa() {
       <div className="flex-1 flex flex-col space-y-4">
         <h1 className="text-xl font-bold text-gray-800">🛒 Kassa</h1>
 
-        {/* Qidiruv */}
-        <div className="relative">
-          <input
-            ref={qidiruvRef}
-            type="text"
-            value={qidiruv}
-            onChange={(e) => setQidiruv(e.target.value)}
-            onKeyDown={barkodSkanerlash}
-            placeholder="🔍 Mahsulot nomi yoki barkod (Enter = skanerlash)"
-            className="input-field pl-4 pr-10 py-3 text-base"
-          />
-          {qidiruv && (
-            <button
-              onClick={() => setQidiruv('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          )}
+        {/* Qidiruv + Scanner tugma */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              ref={qidiruvRef}
+              type="text"
+              value={qidiruv}
+              onChange={(e) => setQidiruv(e.target.value)}
+              onKeyDown={barkodSkanerlash}
+              placeholder="🔍 Mahsulot nomi yoki barkod (Enter = qidirish)"
+              className="input-field pl-4 pr-10 py-3 text-base w-full"
+            />
+            {qidiruv && (
+              <button
+                onClick={() => setQidiruv('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >✕</button>
+            )}
+          </div>
+
+          {/* Kamera scanner tugma */}
+          <button
+            onClick={() => setScannerOchiq(true)}
+            className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 font-medium transition-colors whitespace-nowrap"
+            title="Kamera orqali skanerlash"
+          >
+            <span className="text-xl">📷</span>
+            <span className="hidden sm:inline text-sm">Skaner</span>
+          </button>
         </div>
 
         {/* Qidiruv natijalari */}
@@ -456,6 +497,30 @@ export default function Kassa() {
                   disabled={m.qoldiq <= 0}
                   className="p-3 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-lg text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  {/* Rasm */}
+                  <div className="w-full h-16 mb-2 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                    {m.rasm ? (
+                      <img
+                        src={m.rasm.startsWith('data:') ? m.rasm : `http://localhost:5000${m.rasm}`}
+                        alt={m.nom}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-3xl">
+                        {m.kategoriya_nom?.includes('Non') ? '🍞' :
+                         m.kategoriya_nom?.includes('Ichimlik') ? '🥤' :
+                         m.kategoriya_nom?.includes('Sut') ? '🥛' :
+                         m.kategoriya_nom?.includes('Yog') ? '🫙' :
+                         m.kategoriya_nom?.includes('Choy') ? '☕' :
+                         m.kategoriya_nom?.includes('Gigiena') ? '🧴' :
+                         m.kategoriya_nom?.includes('Uy') ? '🧹' :
+                         m.kategoriya_nom?.includes('Shirinlik') ? '🍫' :
+                         m.kategoriya_nom?.includes('Snack') ? '🍿' :
+                         m.kategoriya_nom?.includes('Konserva') ? '🥫' :
+                         m.kategoriya_nom?.includes('Tuxum') ? '🥚' : '📦'}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm font-medium text-gray-800 truncate">{m.nom}</p>
                   <p className="text-xs text-blue-600 font-bold">{pulFormat(m.sotish_narxi)}</p>
                   <p className="text-xs text-gray-400">Qoldiq: {m.qoldiq}</p>
@@ -609,6 +674,14 @@ export default function Kassa() {
           </div>
         )}
       </div>
+
+      {/* Barkod Scanner Modal */}
+      {scannerOchiq && (
+        <BarkodScanner
+          onSkanerlandi={barkodSkanerlandi}
+          yopish={() => setScannerOchiq(false)}
+        />
+      )}
 
       {/* Chek Modal */}
       {chekModal && (
