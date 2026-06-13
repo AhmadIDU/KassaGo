@@ -12,16 +12,100 @@ const DEMO_MIJOZLAR = [
   { id: 4, ism: 'Yusupova Dilnoza', telefon: '+998935556677', nasiya_summasi: 0 },
 ];
 
+// Yangi mijoz qo'shish mini modali
+function YangiMijozModal({ yopish, saqlash }) {
+  const [form, setForm] = useState({ ism: '', telefon: '', manzil: '' });
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl">
+        <div className="p-4 border-b flex justify-between items-center">
+          <h3 className="font-bold text-base">👤 Yangi qarzdar qo'shish</h3>
+          <button onClick={yopish} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600">Ism familiya *</label>
+            <input
+              className="input-field mt-1"
+              value={form.ism}
+              onChange={e => setForm({ ...form, ism: e.target.value })}
+              placeholder="Mijoz ismi"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Telefon raqam</label>
+            <input
+              className="input-field mt-1"
+              value={form.telefon}
+              onChange={e => setForm({ ...form, telefon: e.target.value })}
+              placeholder="+998 90 000 00 00"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600">Manzil</label>
+            <input
+              className="input-field mt-1"
+              value={form.manzil}
+              onChange={e => setForm({ ...form, manzil: e.target.value })}
+              placeholder="Yashash joyi (ixtiyoriy)"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={yopish} className="btn-secondary flex-1 text-sm">Bekor</button>
+            <button
+              onClick={() => {
+                if (!form.ism.trim()) { toast.error('Ism kiritilishi shart!'); return; }
+                saqlash(form);
+              }}
+              className="btn-primary flex-1 text-sm"
+            >
+              ✅ Saqlash
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Mijoz tanlash komponenti (nasiya uchun)
-function MijozTanlash({ tanlangan, onTanlash, mijozlar, yuklanmoqda }) {
+function MijozTanlash({ tanlangan, onTanlash, mijozlar, onMijozQoshildi }) {
   const [qidiruv, setQidiruv] = useState('');
   const [ochiq, setOchiq] = useState(false);
+  const [yangiMijozModal, setYangiMijozModal] = useState(false);
 
   const filtrlangan = mijozlar.filter(m =>
     !qidiruv ||
     m.ism.toLowerCase().includes(qidiruv.toLowerCase()) ||
     m.telefon?.includes(qidiruv)
   );
+
+  const yangiMijozSaqlash = async (form) => {
+    try {
+      const res = await api.post('/nasiya/mijozlar', form);
+      const yangiMijoz = res.data.mijoz;
+      toast.success(`✅ ${yangiMijoz.ism} qo'shildi va tanlandi!`);
+      onMijozQoshildi(yangiMijoz);
+      onTanlash(yangiMijoz);
+      setYangiMijozModal(false);
+      setOchiq(false);
+    } catch {
+      // Demo rejim
+      const demoMijoz = {
+        id: Date.now(),
+        ism: form.ism,
+        telefon: form.telefon,
+        manzil: form.manzil,
+        nasiya_summasi: 0,
+      };
+      toast.success(`✅ ${demoMijoz.ism} qo'shildi! (Demo)`);
+      onMijozQoshildi(demoMijoz);
+      onTanlash(demoMijoz);
+      setYangiMijozModal(false);
+      setOchiq(false);
+    }
+  };
 
   return (
     <div className="relative">
@@ -33,12 +117,12 @@ function MijozTanlash({ tanlangan, onTanlash, mijozlar, yuklanmoqda }) {
           <div>
             <p className="text-sm font-medium text-orange-800">{tanlangan.ism}</p>
             <p className="text-xs text-orange-500">
-              {tanlangan.telefon} • Qarz: {pulFormat(tanlangan.nasiya_summasi)}
+              {tanlangan?.telefon || '—'} • Mavjud qarz: {pulFormat(tanlangan.nasiya_summasi)}
             </p>
           </div>
           <button
             onClick={() => onTanlash(null)}
-            className="text-orange-400 hover:text-orange-600 ml-2"
+            className="text-orange-400 hover:text-orange-600 ml-2 text-lg"
           >✕</button>
         </div>
       ) : (
@@ -50,39 +134,61 @@ function MijozTanlash({ tanlangan, onTanlash, mijozlar, yuklanmoqda }) {
               onChange={e => { setQidiruv(e.target.value); setOchiq(true); }}
               onFocus={() => setOchiq(true)}
               placeholder="Mijoz ism yoki telefon qidiring..."
-              className="input-field text-sm"
+              className="input-field text-sm pr-10"
               autoFocus
             />
-            {yuklanmoqda && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">⏳</span>
-            )}
           </div>
+
           {ochiq && (
-            <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
-              {filtrlangan.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">Mijoz topilmadi</p>
-              ) : (
-                filtrlangan.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => { onTanlash(m); setOchiq(false); setQidiruv(''); }}
-                    className="w-full flex justify-between items-center px-3 py-2 hover:bg-orange-50 text-left border-b last:border-0"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{m.ism}</p>
-                      <p className="text-xs text-gray-400">{m.telefon || '—'}</p>
-                    </div>
-                    {m.nasiya_summasi > 0 && (
-                      <span className="text-xs text-red-500 font-medium">
-                        Qarz: {pulFormat(m.nasiya_summasi)}
-                      </span>
-                    )}
-                  </button>
-                ))
-              )}
+            <div className="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-xl mt-1 overflow-hidden">
+              {/* Yangi qarzdar qo'shish tugmasi — har doim ko'rinadi */}
+              <button
+                onClick={() => { setYangiMijozModal(true); setOchiq(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-sm border-b border-blue-100 transition-colors"
+              >
+                <span className="text-base">➕</span>
+                <span>Yangi qarzdar qo'shish</span>
+              </button>
+
+              {/* Mavjud mijozlar */}
+              <div className="max-h-44 overflow-y-auto">
+                {filtrlangan.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-3">Mijoz topilmadi</p>
+                ) : (
+                  filtrlangan.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => { onTanlash(m); setOchiq(false); setQidiruv(''); }}
+                      className="w-full flex justify-between items-center px-3 py-2 hover:bg-orange-50 text-left border-b last:border-0 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{m.ism}</p>
+                        <p className="text-xs text-gray-400">{m.telefon || '—'}</p>
+                      </div>
+                      <div className="text-right ml-2">
+                        {m.nasiya_summasi > 0 ? (
+                          <span className="text-xs text-red-500 font-medium badge-red">
+                            {pulFormat(m.nasiya_summasi)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-green-500">Qarz yo'q</span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
+      )}
+
+      {/* Yangi mijoz modali */}
+      {yangiMijozModal && (
+        <YangiMijozModal
+          yopish={() => setYangiMijozModal(false)}
+          saqlash={yangiMijozSaqlash}
+        />
       )}
     </div>
   );
@@ -238,6 +344,11 @@ export default function Kassa() {
     } catch {
       setMijozlar(DEMO_MIJOZLAR);
     }
+  };
+
+  // Yangi mijoz qo'shilganda ro'yxatga qo'shish
+  const mijozQoshildi = (yangiMijoz) => {
+    setMijozlar(prev => [yangiMijoz, ...prev]);
   };
 
   // Kamera orqali barkod skanerlanganda
@@ -640,7 +751,7 @@ export default function Kassa() {
                   tanlangan={tanlanganMijoz}
                   onTanlash={setTanlanganMijoz}
                   mijozlar={mijozlar}
-                  yuklanmoqda={false}
+                  onMijozQoshildi={mijozQoshildi}
                 />
                 {tanlanganMijoz && (
                   <div className="text-xs text-orange-700 bg-orange-100 rounded p-2">
