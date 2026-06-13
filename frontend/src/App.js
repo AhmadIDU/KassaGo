@@ -23,10 +23,26 @@ function HimoyalananRoute({ children, adminKerak }) {
   }
 
   if (adminKerak && foydalanuvchi.rol !== 'admin') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/kassa" replace />;
   }
 
   return <Layout>{children}</Layout>;
+}
+
+// Dashboard faqat admin uchun
+function DashboardRoute() {
+  const { foydalanuvchi, token } = useAuthStore();
+  if (!token || !foydalanuvchi) return <Navigate to="/login" replace />;
+  if (foydalanuvchi.rol !== 'admin') return <Navigate to="/kassa" replace />;
+  return <Layout><Dashboard /></Layout>;
+}
+
+// Asosiy yo'naltirish — admin → dashboard, kassir → kassa
+function AsosiyYonaltirish() {
+  const { foydalanuvchi, token } = useAuthStore();
+  if (!token || !foydalanuvchi) return <Navigate to="/login" replace />;
+  if (foydalanuvchi.rol === 'admin') return <Navigate to="/dashboard" replace />;
+  return <Navigate to="/kassa" replace />;
 }
 
 export default function App() {
@@ -68,9 +84,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        <Route path="/dashboard" element={
-          <HimoyalananRoute><Dashboard /></HimoyalananRoute>
-        } />
+        <Route path="/dashboard" element={<DashboardRoute />} />
+
         <Route path="/kassa" element={
           <HimoyalananRoute><Kassa /></HimoyalananRoute>
         } />
@@ -90,8 +105,8 @@ export default function App() {
           <HimoyalananRoute adminKerak={true}><Foydalanuvchilar /></HimoyalananRoute>
         } />
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<AsosiyYonaltirish />} />
+        <Route path="*" element={<AsosiyYonaltirish />} />
       </Routes>
     </BrowserRouter>
   );
