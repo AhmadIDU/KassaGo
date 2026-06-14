@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { pulFormat, sanaFormat } from '../utils/format';
 import toast from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
+import BarkodScanner from '../components/common/BarkodScanner';
 
 // Demo mahsulotlar (backend bo'lmaganda)
 const DEMO_MAHSULOTLAR = [
@@ -74,19 +76,91 @@ function MahsulotModal({ mahsulot, kategoriyalar, yopish, saqlash }) {
     sotib_olish_narxi: '', qoldiq: 0, min_qoldiq: 5, birlik: 'dona'
   });
   const [rasmPreview, setRasmPreview] = useState(mahsulot?.rasm || null);
+  const [scannerOchiq, setScannerOchiq] = useState(false);
+  const [rasmAnaliz, setRasmAnaliz] = useState(false);
   const rasmInputRef = React.useRef(null);
 
-  const rasmTanlash = (e) => {
+  // 📷 Barkod skanerlanganda
+  const barkodSkanerlandi = async (barkod) => {
+    setScannerOchiq(false);
+    setForm(prev => ({ ...prev, barkod }));
+    toast.success(`✅ Barkod: ${barkod}`);
+
+    // Bazada bor-yo'qligini tekshirish
+    try {
+      const res = await api.get(`/mahsulotlar/barkod/${barkod}`);
+      if (res.data) {
+        toast(`📦 "${res.data.nom}" topildi — ma'lumotlar to'ldirildi!`, { icon: 'ℹ️' });
+        setForm(prev => ({
+          ...prev,
+          barkod,
+          nom: res.data.nom || prev.nom,
+          sotish_narxi: res.data.sotish_narxi || prev.sotish_narxi,
+          sotib_olish_narxi: res.data.sotib_olish_narxi || prev.sotib_olish_narxi,
+          birlik: res.data.birlik || prev.birlik,
+          kategoriya_id: res.data.kategoriya_id || prev.kategoriya_id,
+        }));
+        if (res.data.rasm) setRasmPreview(res.data.rasm);
+      }
+    } catch {
+      toast('🆕 Yangi mahsulot — ma\'lumotlarni to\'ldiring', { icon: '✏️' });
+    }
+  };
+
+  // 🖼️ Rasm yuklanganda — avtomatik to'ldirish
+  const rasmTanlash = async (e) => {
     const fayl = e.target.files[0];
     if (!fayl) return;
-    if (fayl.size > 2 * 1024 * 1024) {
-      toast.error('Rasm hajmi 2MB dan oshmasligi kerak!');
+    if (fayl.size > 5 * 1024 * 1024) {
+      toast.error('Rasm hajmi 5MB dan oshmasligi kerak!');
       return;
     }
+
+    setRasmAnaliz(true);
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      setRasmPreview(ev.target.result);
-      setForm(prev => ({ ...prev, rasm: ev.target.result }));
+    reader.onload = async (ev) => {
+      const rasmData = ev.target.result;
+      setRasmPreview(rasmData);
+      setForm(prev => ({ ...prev, rasm: rasmData }));
+
+      try {
+        // Fayl nomidan mahsulot nomini aniqlash
+        const faylNomi = fayl.name
+          .replace(/\.[^/.]+$/, '')     // kengaytmani olib tashlash
+          .replace(/[-_]/g, ' ')        // - va _ ni bo'shliq bilan
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (faylNomi && faylNomi.length > 2) {
+          // Bazadan o'xshash mahsulot qidirish
+          try {
+            const res = await api.get(`/mahsulotlar?qidiruv=${encodeURIComponent(faylNomi)}`);
+            if (res.data && res.data.length > 0) {
+              const topilgan = res.data[0];
+              toast.success(`🔍 "${topilgan.nom}" topildi — ma'lumotlar to'ldirildi!`);
+              setForm(prev => ({
+                ...prev,
+                nom: prev.nom || topilgan.nom,
+                sotish_narxi: prev.sotish_narxi || topilgan.sotish_narxi,
+                sotib_olish_narxi: prev.sotib_olish_narxi || topilgan.sotib_olish_narxi,
+                birlik: prev.birlik || topilgan.birlik,
+                kategoriya_id: prev.kategoriya_id || topilgan.kategoriya_id,
+                barkod: prev.barkod || topilgan.barkod || '',
+              }));
+            } else {
+              // O'xshash topilmasa — fayl nomini nom sifatida qo'y
+              const chiroylNom = faylNomi.charAt(0).toUpperCase() + faylNomi.slice(1).toLowerCase();
+              setForm(prev => ({ ...prev, nom: prev.nom || chiroylNom }));
+              toast('📝 Fayl nomidan to\'ldirildi — tekshirib ko\'ring', { icon: '✅' });
+            }
+          } catch {
+            const chiroylNom = faylNomi.charAt(0).toUpperCase() + faylNomi.slice(1).toLowerCase();
+            setForm(prev => ({ ...prev, nom: prev.nom || chiroylNom }));
+          }
+        }
+      } finally {
+        setRasmAnaliz(false);
+      }
     };
     reader.readAsDataURL(fayl);
   };
@@ -101,120 +175,162 @@ function MahsulotModal({ mahsulot, kategoriyalar, yopish, saqlash }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[95vh] overflow-y-auto">
-        <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-          <h3 className="font-bold text-lg">{mahsulot ? '✏️ Mahsulot tahrirlash' : '➕ Yangi mahsulot'}</h3>
-          <button onClick={yopish} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-4 space-y-3">
+    <>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[95vh] overflow-y-auto">
+          <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+            <h3 className="font-bold text-lg">{mahsulot ? '✏️ Mahsulot tahrirlash' : '➕ Yangi mahsulot'}</h3>
+            <button onClick={yopish} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-4 space-y-3">
 
-          {/* Rasm yuklash */}
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">📸 Mahsulot rasmi</label>
-            <div className="flex items-center gap-3">
-              {/* Rasm ko'rinishi */}
-              <div
-                onClick={() => rasmInputRef.current?.click()}
-                className="w-20 h-20 border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center bg-gray-50 transition-colors flex-shrink-0"
-              >
-                {rasmPreview ? (
-                  <img
-                    src={rasmPreview}
-                    alt="preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-400">
-                    <div className="text-2xl">📷</div>
-                    <div className="text-xs mt-0.5">Rasm</div>
+            {/* 📸 Rasm yuklash */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                📸 Mahsulot rasmi
+                <span className="text-xs text-green-600 ml-2 font-normal">
+                  ✨ Rasm yuklasangiz — avtomatik to'ldiriladi!
+                </span>
+              </label>
+              <div className="flex items-center gap-3">
+                <div
+                  onClick={() => rasmInputRef.current?.click()}
+                  className="w-24 h-24 border-2 border-dashed border-gray-300 hover:border-green-400 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center bg-gray-50 transition-colors flex-shrink-0 relative"
+                >
+                  {rasmPreview ? (
+                    <img src={rasmPreview} alt="preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <div className="text-3xl">📷</div>
+                      <div className="text-xs mt-0.5">Yuklash</div>
+                    </div>
+                  )}
+                  {rasmAnaliz && (
+                    <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center rounded-xl">
+                      <span className="text-white text-lg animate-spin">🔍</span>
+                      <span className="text-white text-xs mt-1">Analizda...</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <button type="button" onClick={() => rasmInputRef.current?.click()}
+                    className="btn-secondary text-sm w-full">
+                    {rasmPreview ? '🔄 Rasmni o\'zgartirish' : '📤 Rasm yuklash'}
+                  </button>
+                  {rasmPreview && (
+                    <button type="button"
+                      onClick={() => { setRasmPreview(null); setForm(p => ({ ...p, rasm: null })); }}
+                      className="text-xs text-red-500 hover:underline w-full text-center block">
+                      🗑️ O'chirish
+                    </button>
+                  )}
+                  <div className="bg-green-50 rounded-lg p-2 text-xs text-green-700 border border-green-200">
+                    💡 Optomdan tovar rasmi yuklasangiz, bazadagi o'xshash mahsulotni topib, ma'lumotlarni avtomatik to'ldiradi
                   </div>
-                )}
+                </div>
               </div>
-              <div className="flex-1">
+              <input ref={rasmInputRef} type="file" accept="image/*" onChange={rasmTanlash} className="hidden" />
+            </div>
+
+            {/* 📷 Barkod — scanner bilan */}
+            <div>
+              <label className="text-sm font-medium text-gray-700">Barkod / QR kod</label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  className="input-field flex-1"
+                  value={form.barkod || ''}
+                  onChange={e => setForm({...form, barkod: e.target.value})}
+                  placeholder="Barkodni kiriting yoki skanerlang"
+                />
                 <button
                   type="button"
-                  onClick={() => rasmInputRef.current?.click()}
-                  className="btn-secondary text-sm w-full"
+                  onClick={() => setScannerOchiq(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors whitespace-nowrap"
+                  style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
                 >
-                  {rasmPreview ? '🔄 Rasmni o\'zgartirish' : '📤 Rasm yuklash'}
+                  <span>📷</span>
+                  <span>Skaner</span>
                 </button>
-                {rasmPreview && (
-                  <button
-                    type="button"
-                    onClick={() => { setRasmPreview(null); setForm(p => ({ ...p, rasm: null })); }}
-                    className="text-xs text-red-500 hover:underline mt-1 w-full text-center block"
-                  >
-                    🗑️ Rasmni o'chirish
-                  </button>
-                )}
-                <p className="text-xs text-gray-400 mt-1">JPG, PNG • Max 2MB</p>
               </div>
+              <p className="text-xs text-gray-400 mt-1">
+                💡 Barkod skanerlansa — bazada bor bo'lsa barcha ma'lumotlar to'ldiriladi
+              </p>
             </div>
-            <input
-              ref={rasmInputRef}
-              type="file"
-              accept="image/*"
-              onChange={rasmTanlash}
-              className="hidden"
-            />
-          </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700">Nomi *</label>
-            <input className="input-field mt-1" value={form.nom} onChange={e => setForm({...form, nom: e.target.value})} placeholder="Mahsulot nomi" autoFocus />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+            {/* Nom */}
             <div>
-              <label className="text-sm font-medium text-gray-700">Barkod</label>
-              <input className="input-field mt-1" value={form.barkod || ''} onChange={e => setForm({...form, barkod: e.target.value})} placeholder="Barkod" />
+              <label className="text-sm font-medium text-gray-700">Nomi *</label>
+              <input className="input-field mt-1" value={form.nom}
+                onChange={e => setForm({...form, nom: e.target.value})}
+                placeholder="Mahsulot nomi" autoFocus />
             </div>
+
+            {/* Kategoriya */}
             <div>
               <label className="text-sm font-medium text-gray-700">Kategoriya</label>
-              <select className="input-field mt-1" value={form.kategoriya_id || ''} onChange={e => setForm({...form, kategoriya_id: e.target.value})}>
+              <select className="input-field mt-1" value={form.kategoriya_id || ''}
+                onChange={e => setForm({...form, kategoriya_id: e.target.value})}>
                 <option value="">Tanlang</option>
                 {kategoriyalar.map(k => <option key={k.id} value={k.id}>{k.nom}</option>)}
               </select>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Sotish narxi *</label>
-              <input type="number" className="input-field mt-1" value={form.sotish_narxi} onChange={e => setForm({...form, sotish_narxi: e.target.value})} placeholder="0" />
+
+            {/* Narxlar */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Sotish narxi *</label>
+                <input type="number" className="input-field mt-1" value={form.sotish_narxi}
+                  onChange={e => setForm({...form, sotish_narxi: e.target.value})} placeholder="0" />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Sotib olish narxi</label>
+                <input type="number" className="input-field mt-1" value={form.sotib_olish_narxi || ''}
+                  onChange={e => setForm({...form, sotib_olish_narxi: e.target.value})} placeholder="0" />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Sotib olish narxi</label>
-              <input type="number" className="input-field mt-1" value={form.sotib_olish_narxi || ''} onChange={e => setForm({...form, sotib_olish_narxi: e.target.value})} placeholder="0" />
+
+            {/* Qoldiq va birlik */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Qoldiq</label>
+                <input type="number" className="input-field mt-1" value={form.qoldiq}
+                  onChange={e => setForm({...form, qoldiq: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Min qoldiq</label>
+                <input type="number" className="input-field mt-1" value={form.min_qoldiq}
+                  onChange={e => setForm({...form, min_qoldiq: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Birlik</label>
+                <select className="input-field mt-1" value={form.birlik}
+                  onChange={e => setForm({...form, birlik: e.target.value})}>
+                  <option value="dona">dona</option>
+                  <option value="kg">kg</option>
+                  <option value="litr">litr</option>
+                  <option value="metr">metr</option>
+                  <option value="paket">paket</option>
+                  <option value="quti">quti</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Qoldiq</label>
-              <input type="number" className="input-field mt-1" value={form.qoldiq} onChange={e => setForm({...form, qoldiq: e.target.value})} />
+
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={yopish} className="btn-secondary flex-1">Bekor</button>
+              <button type="submit" className="btn-primary flex-1">💾 Saqlash</button>
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Min qoldiq</label>
-              <input type="number" className="input-field mt-1" value={form.min_qoldiq} onChange={e => setForm({...form, min_qoldiq: e.target.value})} />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Birlik</label>
-              <select className="input-field mt-1" value={form.birlik} onChange={e => setForm({...form, birlik: e.target.value})}>
-                <option value="dona">dona</option>
-                <option value="kg">kg</option>
-                <option value="litr">litr</option>
-                <option value="metr">metr</option>
-                <option value="paket">paket</option>
-                <option value="quti">quti</option>
-              </select>
-            </div>
-          </div>
-          <div className="flex gap-2 pt-2">
-            <button type="button" onClick={yopish} className="btn-secondary flex-1">Bekor</button>
-            <button type="submit" className="btn-primary flex-1">💾 Saqlash</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {/* Scanner Modal */}
+      {scannerOchiq && (
+        <BarkodScanner
+          onSkanerlandi={barkodSkanerlandi}
+          yopish={() => setScannerOchiq(false)}
+        />
+      )}
+    </>
   );
 }
 
