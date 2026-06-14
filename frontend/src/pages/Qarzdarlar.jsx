@@ -209,7 +209,21 @@ function MijozDetailModal({ mijozId, yopish, tolovQilish }) {
       setMalumot({
         mijoz: demo,
         nasiyalar: [
-          { id: 1, summa: 150000, qolgan_summa: demo?.nasiya_summasi || 0, holat: 'ochiq', yaratilgan: new Date().toISOString(), izoh: 'Oziq-ovqat' },
+          {
+            id: 1,
+            summa: 150000,
+            qolgan_summa: demo?.nasiya_summasi || 0,
+            holat: 'ochiq',
+            yaratilgan: new Date().toISOString(),
+            izoh: 'Oziq-ovqat',
+            mahsulotlar: [
+              { mahsulot_nom: 'Guruch (1kg)',         miqdor: 3, narx: 12000, jami: 36000 },
+              { mahsulot_nom: 'O\'simlik yog\'i (1L)', miqdor: 2, narx: 25000, jami: 50000 },
+              { mahsulot_nom: 'Un (2kg)',              miqdor: 2, narx: 18000, jami: 36000 },
+              { mahsulot_nom: 'Qand (1kg)',            miqdor: 1, narx: 15000, jami: 15000 },
+              { mahsulot_nom: 'Non (oq)',              miqdor: 2, narx: 3000,  jami: 6000  },
+            ],
+          },
         ],
         tolovlar: [],
       });
@@ -282,6 +296,23 @@ function MijozDetailModal({ mijozId, yopish, tolovQilish }) {
                         )}
                       </div>
                     </div>
+
+                    {/* Nima mahsulot olgani */}
+                    {n.mahsulotlar && n.mahsulotlar.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-red-200">
+                        <p className="text-xs font-semibold text-gray-500 mb-1">🛒 Nima olgan:</p>
+                        <div className="space-y-0.5">
+                          {n.mahsulotlar.map((m, i) => (
+                            <div key={i} className="flex justify-between text-xs text-gray-600 bg-white/60 rounded px-2 py-1">
+                              <span className="font-medium">{m.mahsulot_nom}</span>
+                              <span className="text-gray-500">
+                                {m.miqdor} × {pulFormat(m.narx)} = <strong className="text-red-600">{pulFormat(m.jami)}</strong>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

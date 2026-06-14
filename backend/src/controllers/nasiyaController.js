@@ -41,6 +41,25 @@ const bittaMijoz = async (req, res) => {
       [id]
     );
 
+    // Har bir nasiya uchun savdo elementlarini ham olish
+    const nasiyalarMahsulotlar = [];
+    for (const nasiya of nasiyalar.rows) {
+      if (nasiya.savdo_id) {
+        const elementlar = await pool.query(
+          `SELECT se.mahsulot_nom, se.miqdor, se.narx, se.jami
+           FROM savdo_elementlari se
+           WHERE se.savdo_id = $1`,
+          [nasiya.savdo_id]
+        );
+        nasiyalarMahsulotlar.push({
+          ...nasiya,
+          mahsulotlar: elementlar.rows,
+        });
+      } else {
+        nasiyalarMahsulotlar.push({ ...nasiya, mahsulotlar: [] });
+      }
+    }
+
     const tolovlar = await pool.query(
       `SELECT t.*, f.ism as kassir_ism
        FROM nasiya_tolovlar t
@@ -52,7 +71,7 @@ const bittaMijoz = async (req, res) => {
 
     res.json({
       mijoz: mijoz.rows[0],
-      nasiyalar: nasiyalar.rows,
+      nasiyalar: nasiyalarMahsulotlar,
       tolovlar: tolovlar.rows,
     });
   } catch (err) {
