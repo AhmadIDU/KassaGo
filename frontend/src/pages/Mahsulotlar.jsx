@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { pulFormat, sanaFormat } from '../utils/format';
 import toast from 'react-hot-toast';
