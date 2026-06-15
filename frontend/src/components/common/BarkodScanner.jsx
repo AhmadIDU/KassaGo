@@ -1,65 +1,83 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
 
 export default function BarkodScanner({ onSkanerlandi, yopish }) {
+  const [rejim, setRejim] = useState('auto'); // auto | kamera | qolda
   const [xato, setXato] = useState(null);
   const [ishlamoqda, setIshlamoqda] = useState(false);
   const [kameralar, setKameralar] = useState([]);
   const [tanlanganKamera, setTanlanganKamera] = useState(null);
+  const [qolda, setQolda] = useState('');
   const scannerRef = useRef(null);
-  const scannerId = 'baraka-barkod-scanner';
+  const inputRef = useRef(null);
+  const scannerId = 'baraka-scanner-div';
+
+  // HTTPS yoki localhost da kamera ishlaydi
+  const httpsOrLocal = window.location.protocol === 'https:' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
 
   useEffect(() => {
-    kameralarniYuklash();
-    return () => {
-      scannerniToxtatish();
-    };
+    if (httpsOrLocal) {
+      // Kamera rejimini urinib ko'ramiz
+      kameralarniYuklash();
+    } else {
+      // HTTP da — qo'lda kiritish rejimi
+      setRejim('qolda');
+      setXato('HTTP da kamera ishlamaydi. Qo\'lda kiriting yoki USB scanner ishlating.');
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+    return () => scannerniToxtatish();
   }, []);
+
+  useEffect(() => {
+    if (rejim === 'qolda') {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [rejim]);
 
   const kameralarniYuklash = async () => {
     try {
+      // html5-qrcode ni dinamik yuklash
+      const { Html5Qrcode } = await import('html5-qrcode');
       const qurilmalar = await Html5Qrcode.getCameras();
-      setKameralar(qurilmalar);
       if (qurilmalar.length > 0) {
-        // Orqa kamerani tanlash (telefon uchun)
-        const orqaKamera = qurilmalar.find(k =>
+        setKameralar(qurilmalar);
+        const orqa = qurilmalar.find(k =>
           k.label.toLowerCase().includes('back') ||
-          k.label.toLowerCase().includes('orqa') ||
           k.label.toLowerCase().includes('environment')
         );
-        setTanlanganKamera(orqaKamera?.id || qurilmalar[0].id);
+        setTanlanganKamera(orqa?.id || qurilmalar[0].id);
+        setRejim('kamera');
+      } else {
+        setRejim('qolda');
       }
-    } catch (err) {
-      setXato('Kameraga ruxsat berilmadi. Brauzер sozlamalaridan ruxsat bering.');
+    } catch {
+      setRejim('qolda');
     }
   };
 
+  useEffect(() => {
+    if (rejim === 'kamera' && tanlanganKamera) {
+      scannerniBoshlash(tanlanganKamera);
+    }
+  }, [rejim, tanlanganKamera]);
+
   const scannerniBoshlash = async (kameraId) => {
     if (ishlamoqda) return;
-
     try {
       setXato(null);
+      const { Html5Qrcode } = await import('html5-qrcode');
       scannerRef.current = new Html5Qrcode(scannerId);
-
       await scannerRef.current.start(
-        kameraId || tanlanganKamera,
-        {
-          fps: 15,
-          qrbox: { width: 250, height: 150 },
-          aspectRatio: 1.5,
-        },
-        (decodedText) => {
-          // Muvaffaqiyatli skanerlandi
-          scannerniToxtatish();
-          onSkanerlandi(decodedText.trim());
-        },
-        () => {
-          // Har bir frame da xato — ignore
-        }
+        kameraId,
+        { fps: 15, qrbox: { width: 250, height: 150 } },
+        (text) => { scannerniToxtatish(); onSkanerlandi(text.trim()); },
+        () => {}
       );
       setIshlamoqda(true);
     } catch (err) {
-      setXato('Kamerani ishga tushirishda xato: ' + err.message);
+      setXato('Kamera ishlamadi: ' + err.message);
+      setRejim('qolda');
       setIshlamoqda(false);
     }
   };
@@ -74,16 +92,15 @@ export default function BarkodScanner({ onSkanerlandi, yopish }) {
     setIshlamoqda(false);
   };
 
-  useEffect(() => {
-    if (tanlanganKamera) {
-      scannerniBoshlash(tanlanganKamera);
+  // USB Scanner / qo'lda kiritish
+  const qoldaYuborish = (e) => {
+    e.preventDefault();
+    const val = qolda.trim();
+    if (val) {
+      scannerniToxtatish();
+      onSkanerlandi(val);
+      setQolda('');
     }
-  }, [tanlanganKamera]);
-
-  const kameraAlmashtirish = async (kameraId) => {
-    await scannerniToxtatish();
-    setTanlanganKamera(kameraId);
-    setTimeout(() => scannerniBoshlash(kameraId), 500);
   };
 
   return (
@@ -91,141 +108,161 @@ export default function BarkodScanner({ onSkanerlandi, yopish }) {
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="bg-slate-800 text-white px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="px-4 py-3 flex items-center justify-between"
+          style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
+          <div className="flex items-center gap-2 text-white">
             <span className="text-xl">📷</span>
             <div>
-              <h3 className="font-bold text-sm">Barkod / QR Scanner</h3>
-              <p className="text-xs text-slate-300">Mahsulotni kameraga tutib turing</p>
+              <p className="font-bold text-sm">Barkod / QR Scanner</p>
+              <p className="text-xs text-green-200">
+                {rejim === 'kamera' ? 'Kamera orqali skanerlash' : 'Qo\'lda yoki USB scanner'}
+              </p>
             </div>
           </div>
-          <button
-            onClick={() => { scannerniToxtatish(); yopish(); }}
-            className="w-8 h-8 bg-slate-700 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
-          >
+          <button onClick={() => { scannerniToxtatish(); yopish(); }}
+            className="w-8 h-8 bg-white/20 hover:bg-red-500 rounded-full flex items-center justify-center text-white transition-colors">
             ✕
           </button>
         </div>
 
-        {/* Kamera tanlash */}
-        {kameralar.length > 1 && (
-          <div className="px-4 pt-3">
-            <select
-              value={tanlanganKamera || ''}
-              onChange={e => kameraAlmashtirish(e.target.value)}
-              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-gray-50"
-            >
-              {kameralar.map(k => (
-                <option key={k.id} value={k.id}>
-                  📹 {k.label || `Kamera ${k.id.slice(0, 8)}`}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Rejim tanlash */}
+        <div className="flex border-b">
+          <button
+            onClick={() => { scannerniToxtatish(); setRejim('kamera'); kameralarniYuklash(); }}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              rejim === 'kamera'
+                ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            📷 Kamera
+          </button>
+          <button
+            onClick={() => { scannerniToxtatish(); setRejim('qolda'); }}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+              rejim === 'qolda'
+                ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            ⌨️ Qo'lda / USB
+          </button>
+        </div>
 
-        {/* Scanner oynasi */}
         <div className="p-4">
-          {xato ? (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-              <div className="text-3xl mb-2">📵</div>
-              <p className="text-sm text-red-600 font-medium mb-3">{xato}</p>
-              <button
-                onClick={kameralarniYuklash}
-                className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg"
-              >
-                🔄 Qayta urinish
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              {/* Scanner div */}
-              <div
-                id={scannerId}
-                className="w-full rounded-xl overflow-hidden bg-black"
-                style={{ minHeight: '220px' }}
-              />
 
-              {/* Agar ishlamoqda bo'lsa — maqsad chiziqlari */}
-              {ishlamoqda && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="relative w-56 h-36">
-                    {/* Burchak chiziqlari */}
-                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg" />
-                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg" />
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg" />
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg" />
-                    {/* Skanerlash chizig'i animatsiyasi */}
-                    <div className="absolute left-2 right-2 h-0.5 bg-green-400 opacity-80 animate-scan-line" />
-                  </div>
+          {/* KAMERA REJIMI */}
+          {rejim === 'kamera' && (
+            <div>
+              {kameralar.length > 1 && (
+                <select
+                  value={tanlanganKamera || ''}
+                  onChange={e => {
+                    scannerniToxtatish();
+                    setTanlanganKamera(e.target.value);
+                    setTimeout(() => scannerniBoshlash(e.target.value), 500);
+                  }}
+                  className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 mb-3 bg-gray-50"
+                >
+                  {kameralar.map(k => (
+                    <option key={k.id} value={k.id}>
+                      📹 {k.label || `Kamera ${k.id.slice(0, 8)}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {xato ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+                  <div className="text-3xl mb-2">⚠️</div>
+                  <p className="text-sm text-orange-700 font-medium mb-2">{xato}</p>
+                  <button onClick={() => setRejim('qolda')}
+                    className="text-sm bg-green-600 text-white px-4 py-2 rounded-lg font-medium">
+                    ⌨️ Qo'lda kiritishga o'tish
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <div id={scannerId} className="w-full rounded-xl overflow-hidden bg-black"
+                    style={{ minHeight: '200px' }} />
+                  {ishlamoqda && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="relative w-52 h-32">
+                        <div className="absolute top-0 left-0 w-6 h-6 border-t-3 border-l-3 border-green-400 rounded-tl" style={{ borderWidth: '3px' }} />
+                        <div className="absolute top-0 right-0 w-6 h-6 border-t-3 border-r-3 border-green-400 rounded-tr" style={{ borderTopWidth: '3px', borderRightWidth: '3px' }} />
+                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-3 border-l-3 border-green-400 rounded-bl" style={{ borderBottomWidth: '3px', borderLeftWidth: '3px' }} />
+                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-3 border-r-3 border-green-400 rounded-br" style={{ borderBottomWidth: '3px', borderRightWidth: '3px' }} />
+                      </div>
+                    </div>
+                  )}
+                  {!ishlamoqda && !xato && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-xl">
+                      <div className="text-white text-center">
+                        <div className="text-3xl mb-1 animate-pulse">📷</div>
+                        <p className="text-sm">Kamera yuklanmoqda...</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Yuklanmoqda */}
-              {!ishlamoqda && !xato && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl">
-                  <div className="text-white text-center">
-                    <div className="text-3xl mb-2 animate-pulse">📷</div>
-                    <p className="text-sm">Kamera yuklanmoqda...</p>
-                  </div>
+              {!xato && !httpsOrLocal && (
+                <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 text-xs text-yellow-700">
+                  ⚠️ HTTP da kamera ishlamaydi. HTTPS yoki localhost da ishlaydi.
                 </div>
               )}
             </div>
           )}
-        </div>
 
-        {/* Qo'lda kiritish */}
-        <div className="px-4 pb-4">
-          <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs text-gray-400 text-center mb-2">— yoki qo'lda kiriting —</p>
-            <ManualBarkod onKiritildi={(val) => { scannerniToxtatish(); onSkanerlandi(val); }} />
-          </div>
+          {/* QO'LDA / USB REJIMI */}
+          {rejim === 'qolda' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+                <p className="text-2xl mb-1">⌨️</p>
+                <p className="text-sm font-medium text-blue-700">Qo'lda kiritish yoki USB Scanner</p>
+                <p className="text-xs text-blue-500 mt-1">
+                  USB barkod scanner ulangan bo'lsa — pastdagi maydonga skanerlang
+                </p>
+              </div>
+
+              <form onSubmit={qoldaYuborish} className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">
+                    Barkod / QR kod raqami:
+                  </label>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={qolda}
+                    onChange={e => setQolda(e.target.value)}
+                    placeholder="Barkodni kiriting yoki skanerlang..."
+                    className="w-full border-2 border-gray-200 focus:border-green-500 rounded-xl px-4 py-3 text-base font-mono focus:outline-none"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!qolda.trim()}
+                  className="w-full py-3 rounded-xl font-bold text-white transition-all disabled:opacity-40"
+                  style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+                >
+                  ✅ Tasdiqlash
+                </button>
+              </form>
+
+              <div className="border-t pt-3">
+                <p className="text-xs text-gray-400 text-center mb-2">💡 Maslahatlar:</p>
+                <div className="space-y-1.5 text-xs text-gray-500">
+                  <p>• USB scanner ulasangiz — avtomatik skanerlaydi</p>
+                  <p>• Telefondan HTTPS kerak bo'ladi kamera uchun</p>
+                  <p>• Barkodni qo'lda ham yozsa bo'ladi</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes scan-line {
-          0% { top: 8px; }
-          50% { top: calc(100% - 8px); }
-          100% { top: 8px; }
-        }
-        .animate-scan-line {
-          animation: scan-line 2s linear infinite;
-        }
-      `}</style>
     </div>
-  );
-}
-
-// Qo'lda barkod kiritish
-function ManualBarkod({ onKiritildi }) {
-  const [qiymat, setQiymat] = useState('');
-
-  const yuborish = (e) => {
-    e.preventDefault();
-    if (qiymat.trim()) {
-      onKiritildi(qiymat.trim());
-      setQiymat('');
-    }
-  };
-
-  return (
-    <form onSubmit={yuborish} className="flex gap-2">
-      <input
-        type="text"
-        value={qiymat}
-        onChange={e => setQiymat(e.target.value)}
-        placeholder="Barkodni kiriting..."
-        className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        autoComplete="off"
-      />
-      <button
-        type="submit"
-        disabled={!qiymat.trim()}
-        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-      >
-        ✓
-      </button>
-    </form>
   );
 }
