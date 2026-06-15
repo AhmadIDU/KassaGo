@@ -4,6 +4,294 @@ import { pulFormat, sanaVaqtFormat } from '../utils/format';
 import toast from 'react-hot-toast';
 import BarkodScanner from '../components/common/BarkodScanner';
 
+// ===================== OPTOM SPETSIFIKATSIYA MODALI =====================
+function SpetsifikatsiyaModal({ mahsulotlar, yopish, saqlandi }) {
+  const [qatorlar, setQatorlar] = useState([
+    { uid: 1, nom: '', mahsulot_id: '', miqdor: '', narx: '', birlik: 'dona', yangi: false },
+  ]);
+  const [yuborilmoqda, setYuborilmoqda] = useState(false);
+  const [manba, setManba] = useState(''); // Optom firma nomi
+
+  const qatorQoshish = () => {
+    setQatorlar(prev => [...prev, {
+      uid: Date.now(),
+      nom: '', mahsulot_id: '', miqdor: '', narx: '', birlik: 'dona', yangi: false
+    }]);
+  };
+
+  const qatorYangilash = (uid, maydon, qiymat) => {
+    setQatorlar(prev => prev.map(q => {
+      if (q.uid !== uid) return q;
+      const yangilangan = { ...q, [maydon]: qiymat };
+
+      // Mahsulot tanlanganda narx va birlikni avtomatik to'ldirish
+      if (maydon === 'mahsulot_id' && qiymat) {
+        const m = mahsulotlar.find(m => m.id === parseInt(qiymat));
+        if (m) {
+          yangilangan.nom = m.nom;
+          yangilangan.narx = yangilangan.narx || m.sotib_olish_narxi || '';
+          yangilangan.birlik = m.birlik;
+          yangilangan.yangi = false;
+        }
+      }
+      return yangilangan;
+    }));
+  };
+
+  const qatorOchirish = (uid) => {
+    if (qatorlar.length === 1) return;
+    setQatorlar(prev => prev.filter(q => q.uid !== uid));
+  };
+
+  const jamiSumma = qatorlar.reduce((s, q) =>
+    s + (parseFloat(q.narx) || 0) * (parseFloat(q.miqdor) || 0), 0
+  );
+
+  const hammasiniSaqlash = async () => {
+    const togriQatorlar = qatorlar.filter(q =>
+      (q.mahsulot_id || q.nom.trim()) && parseFloat(q.miqdor) > 0
+    );
+
+    if (togriQatorlar.length === 0) {
+      toast.error('Hech bo\'lmasa 1 ta tovar kiritilishi kerak!');
+      return;
+    }
+
+    setYuborilmoqda(true);
+    let muvaffaqiyat = 0;
+    let xatolar = 0;
+
+    for (const q of togriQatorlar) {
+      try {
+        if (q.mahsulot_id) {
+          // Bazadagi mahsulotga kirim qo'shish
+          await api.post('/ombor/kirim', {
+            mahsulot_id: parseInt(q.mahsulot_id),
+            miqdor: parseFloat(q.miqdor),
+            narx: q.narx ? parseFloat(q.narx) : undefined,
+            sabab: manba ? `Optom kirim: ${manba}` : 'Optom kirim',
+          });
+          muvaffaqiyat++;
+        } else if (q.nom.trim()) {
+          // Yangi mahsulot — avval qo'shib, keyin kirim
+          toast(`⚠️ "${q.nom}" — bazada yo'q, qo'lda qo'shing`, { duration: 4000 });
+          xatolar++;
+        }
+      } catch {
+        xatolar++;
+      }
+    }
+
+    setYuborilmoqda(false);
+
+    if (muvaffaqiyat > 0) {
+      toast.success(`✅ ${muvaffaqiyat} ta tovar muvaffaqiyatli omborga kirim qilindi!`);
+      saqlandi();
+      yopish();
+    }
+    if (xatolar > 0) {
+      toast.error(`${xatolar} ta tovar kirimda xato yoki bazada topilmadi!`);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col"
+        style={{ maxHeight: '95vh' }}>
+
+        {/* Header */}
+        <div className="p-4 border-b flex items-center justify-between flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}>
+          <div className="text-white">
+            <h2 className="font-bold text-lg">📋 Optom Spetsifikatsiyadan Kirim</h2>
+            <p className="text-green-200 text-sm">Накладная bo'yicha tovarlarni kiriting</p>
+          </div>
+          <button onClick={yopish}
+            className="w-8 h-8 bg-white/20 hover:bg-red-500 rounded-full text-white flex items-center justify-center transition-colors">
+            ✕
+          </button>
+        </div>
+
+        {/* Manba */}
+        <div className="px-4 pt-3 pb-2 border-b flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              🏭 Optom firma:
+            </label>
+            <input
+              type="text"
+              value={manba}
+              onChange={e => setManba(e.target.value)}
+              placeholder="Firma nomi (ixtiyoriy)"
+              className="flex-1 max-w-xs border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-green-400"
+            />
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm text-gray-500">
+                {qatorlar.filter(q => q.miqdor > 0).length} ta tovar
+              </span>
+              <span className="font-bold text-green-600">{pulFormat(jamiSumma)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Jadval */}
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0 z-10">
+              <tr>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium w-8">#</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium">Mahsulot</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium w-28">Nomi (spets.dan)</th>
+                <th className="text-center px-3 py-2 text-gray-500 font-medium w-28">Miqdor</th>
+                <th className="text-left px-3 py-2 text-gray-500 font-medium w-16">Birlik</th>
+                <th className="text-right px-3 py-2 text-gray-500 font-medium w-36">Narx (sotib ol.)</th>
+                <th className="text-right px-3 py-2 text-gray-500 font-medium w-32">Jami</th>
+                <th className="w-8 px-2 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {qatorlar.map((q, i) => (
+                <tr key={q.uid} className={`border-b ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                  <td className="px-3 py-1.5 text-gray-400 text-xs">{i + 1}</td>
+
+                  {/* Mahsulot tanlash */}
+                  <td className="px-3 py-1.5">
+                    <select
+                      value={q.mahsulot_id}
+                      onChange={e => qatorYangilash(q.uid, 'mahsulot_id', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-green-400 bg-white"
+                    >
+                      <option value="">— Tanlang —</option>
+                      {mahsulotlar.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.nom} ({m.birlik})
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+
+                  {/* Spetsdan nomi */}
+                  <td className="px-3 py-1.5">
+                    <input
+                      type="text"
+                      value={q.nom}
+                      onChange={e => qatorYangilash(q.uid, 'nom', e.target.value)}
+                      placeholder="Spets. dagi nom"
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-green-400"
+                    />
+                  </td>
+
+                  {/* Miqdor */}
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => qatorYangilash(q.uid, 'miqdor', Math.max(0, (parseFloat(q.miqdor) || 0) - 1))}
+                        className="w-6 h-6 bg-gray-200 hover:bg-red-100 rounded text-xs font-bold flex-shrink-0">−</button>
+                      <input
+                        type="number"
+                        value={q.miqdor}
+                        onChange={e => qatorYangilash(q.uid, 'miqdor', e.target.value)}
+                        className="w-14 text-center border border-gray-200 rounded-lg py-1 text-sm font-bold focus:outline-none focus:border-green-400"
+                        placeholder="0"
+                      />
+                      <button onClick={() => qatorYangilash(q.uid, 'miqdor', (parseFloat(q.miqdor) || 0) + 1)}
+                        className="w-6 h-6 bg-gray-200 hover:bg-green-100 rounded text-xs font-bold flex-shrink-0">+</button>
+                    </div>
+                  </td>
+
+                  {/* Birlik */}
+                  <td className="px-3 py-1.5">
+                    <select value={q.birlik}
+                      onChange={e => qatorYangilash(q.uid, 'birlik', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:border-green-400">
+                      <option value="dona">dona</option>
+                      <option value="kg">kg</option>
+                      <option value="litr">litr</option>
+                      <option value="quti">quti</option>
+                      <option value="blok">blok</option>
+                      <option value="karobka">karobka</option>
+                      <option value="paket">paket</option>
+                    </select>
+                  </td>
+
+                  {/* Narx */}
+                  <td className="px-3 py-1.5">
+                    <input
+                      type="number"
+                      value={q.narx}
+                      onChange={e => qatorYangilash(q.uid, 'narx', e.target.value)}
+                      className="w-full text-right border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-green-400"
+                      placeholder="0"
+                    />
+                  </td>
+
+                  {/* Jami */}
+                  <td className="px-3 py-1.5 text-right font-bold text-green-600 text-sm">
+                    {q.narx && q.miqdor
+                      ? pulFormat((parseFloat(q.narx) || 0) * (parseFloat(q.miqdor) || 0))
+                      : '—'}
+                  </td>
+
+                  {/* O'chirish */}
+                  <td className="px-2 py-1.5">
+                    <button onClick={() => qatorOchirish(q.uid)}
+                      className="w-6 h-6 bg-red-100 hover:bg-red-200 text-red-500 rounded text-xs flex items-center justify-center">
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+
+            {/* Jami qator */}
+            <tfoot>
+              <tr className="bg-green-50 border-t-2 border-green-200">
+                <td colSpan="3" className="px-3 py-2 text-sm font-bold text-gray-600">
+                  Jami: {qatorlar.filter(q => parseFloat(q.miqdor) > 0).length} ta tovar
+                </td>
+                <td className="px-3 py-2 text-center font-bold text-blue-700">
+                  {qatorlar.reduce((s, q) => s + (parseFloat(q.miqdor) || 0), 0)} ta
+                </td>
+                <td></td>
+                <td className="px-3 py-2 text-right text-xs text-gray-500">Jami summa:</td>
+                <td className="px-3 py-2 text-right font-bold text-green-700 text-base">
+                  {pulFormat(jamiSumma)}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t flex-shrink-0 flex items-center gap-3">
+          <button
+            onClick={qatorQoshish}
+            className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-green-400 text-green-600 rounded-xl hover:bg-green-50 transition-colors font-medium text-sm"
+          >
+            ➕ Qator qo'shish
+          </button>
+
+          <div className="flex-1" />
+
+          <button onClick={yopish} className="btn-secondary px-6">
+            Bekor
+          </button>
+          <button
+            onClick={hammasiniSaqlash}
+            disabled={yuborilmoqda}
+            className="px-6 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+          >
+            {yuborilmoqda
+              ? '⏳ Saqlanmoqda...'
+              : `✅ Omborga kirim qilish — ${pulFormat(jamiSumma)}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const DEMO_MAHSULOTLAR = [
   { id: 1,  nom: 'Non (oq)',             barkod: '4600001', sotish_narxi: 3000,  sotib_olish_narxi: 2200,  qoldiq: 80,  min_qoldiq: 10, birlik: 'dona', kategoriya_nom: 'Non-novvot',  kam_qoldiq: false, ombor_qiymati: 176000 },
   { id: 5,  nom: 'Qand (1kg)',            barkod: '4600005', sotish_narxi: 15000, sotib_olish_narxi: 12000, qoldiq: 50,  min_qoldiq: 10, birlik: 'kg',   kategoriya_nom: 'Quruq ozuqa', kam_qoldiq: false, ombor_qiymati: 600000 },
@@ -24,6 +312,7 @@ export default function Ombor() {
   const [mahsulotlar, setMahsulotlar] = useState([]);
   const [yuklanmoqda, setYuklanmoqda] = useState(true);
   const [scannerOchiq, setScannerOchiq] = useState(false);
+  const [spetsModalOchiq, setSpetsModalOchiq] = useState(false);
 
   // Kirim ro'yxati — bir sessiyadagi barcha skanerlangan/qo'shilgan tovarlar
   const [kirimRoyxati, setKirimRoyxati] = useState([]);
@@ -250,6 +539,16 @@ export default function Ombor() {
             {t.label}
           </button>
         ))}
+
+        {/* Spetsifikatsiya tugmasi */}
+        <button
+          onClick={() => setSpetsModalOchiq(true)}
+          className="ml-auto flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all mb-1"
+          style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
+        >
+          <span>📋</span>
+          <span>Optom spetsifikatsiya</span>
+        </button>
       </div>
 
       {/* ===================== QOLDIQLAR ===================== */}
@@ -533,6 +832,17 @@ export default function Ombor() {
           yopish={() => setScannerOchiq(false)}
         />
       )}
+
+      {/* Optom Spetsifikatsiya Modali */}
+      {spetsModalOchiq && (
+        <SpetsifikatsiyaModal
+          mahsulotlar={mahsulotlar}
+          yopish={() => setSpetsModalOchiq(false)}
+          saqlandi={() => { malumotYuklash(); harakatlarYuklash(); }}
+        />
+      )}
     </div>
   );
 }
+
+
